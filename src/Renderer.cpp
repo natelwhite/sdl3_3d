@@ -1,5 +1,6 @@
 #include "Renderer.hpp"
 #include "Context.hpp"
+#include "SDL3/SDL_gpu.h"
 
 Renderer::Renderer(const int &t_width, const int &t_height) : m_width(t_width), m_height(t_height) {
 	// init SDL video
@@ -34,5 +35,13 @@ Renderer::Renderer(const int &t_width, const int &t_height) : m_width(t_width), 
 	};
 	Context::get()->set(ctx);
 	return;
+}
+
+Renderer::~Renderer() {
+	ContextData ctx { Context::get()->data() };
+	SDL_ReleaseWindowFromGPUDevice(ctx.gpu, ctx.window);
+	SDL_DestroyGPUDevice(ctx.gpu);
+	SDL_DestroyWindow(ctx.window);
+	Context::get()->set(ContextData{});
 }
 

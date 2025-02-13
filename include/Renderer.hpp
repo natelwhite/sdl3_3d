@@ -5,6 +5,7 @@
 class Renderer {
 	public:
 		Renderer(const int &t_width, const int &t_height);
+		~Renderer();
 		SDL_GPUGraphicsPipeline* createGraphicsPipeline(SDL_GPUShader *vert_shader, SDL_GPUShader *frag_shader, SDL_GPUVertexInputState vert_input_state);
 
 	private:
