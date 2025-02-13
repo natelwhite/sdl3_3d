@@ -1,6 +1,8 @@
 #include "Renderer.hpp"
-#include <iostream>
+#include "Materials.hpp"
 #include <math.h>
+
+Context* Context::self = 0;
 
 int main() {
 	// calculate tangent points
