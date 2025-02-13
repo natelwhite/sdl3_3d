@@ -1,6 +1,7 @@
 #pragma once
 #include <SDL3/SDL_log.h>
 #include "Context.hpp"
+#include <iostream>
 
 template<typename STORAGE_TYPE> class VertexBuffer {
 	public:
@@ -27,7 +28,9 @@ template<typename STORAGE_TYPE> class VertexBuffer {
 		}
 		~VertexBuffer() {
 			const ContextData ctx { Context::get()->data() };
+			std::cout << "Release transfer buffer" << std::endl;
 			SDL_ReleaseGPUTransferBuffer(ctx.gpu, m_transfer_buffer);
+			std::cout << "Release gpu buffer" << std::endl;
 			SDL_ReleaseGPUBuffer(ctx.gpu, m_main_buffer);
 			m_main_buffer = nullptr;
 			m_transfer_buffer = nullptr;
@@ -46,11 +49,11 @@ template<typename STORAGE_TYPE> class VertexBuffer {
 			SDL_UnmapGPUTransferBuffer(ctx.gpu, m_transfer_buffer);
 			SDL_GPUCommandBuffer *upload_cmd_buf { SDL_AcquireGPUCommandBuffer(ctx.gpu) };
 			SDL_GPUCopyPass *copy_pass { SDL_BeginGPUCopyPass(upload_cmd_buf) };
-			SDL_GPUTransferBufferLocation transfer_buffer_loc {
+			const SDL_GPUTransferBufferLocation transfer_buffer_loc {
 				.transfer_buffer = m_transfer_buffer,
 				.offset = 0
 			};
-			SDL_GPUBufferRegion buffer_region {
+			const SDL_GPUBufferRegion buffer_region {
 				.buffer = m_main_buffer,
 				.offset = 0,
 				.size = static_cast<Uint32>(sizeof(STORAGE_TYPE) * m_count)
@@ -60,8 +63,9 @@ template<typename STORAGE_TYPE> class VertexBuffer {
 			SDL_SubmitGPUCommandBuffer(upload_cmd_buf);
 		}
 		SDL_GPUBuffer* address() { return m_main_buffer; }
+	protected:
+		SDL_GPUBuffer *m_main_buffer { nullptr };
 	private:
 		const size_t m_count;
-		SDL_GPUBuffer *m_main_buffer { nullptr };
 		SDL_GPUTransferBuffer *m_transfer_buffer { nullptr };
 };

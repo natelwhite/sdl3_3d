@@ -1,6 +1,7 @@
 #pragma once
 #include "VertexBuffer.hpp"
 #include <SDL3_shadercross/SDL_shadercross.h>
+#include <iostream>
 
 typedef struct PositionColorVertex {
 	float x, y, z;
@@ -30,13 +31,11 @@ class BasicMat : public Material {
 		void init();
 };
 
-class VertexBufferMat : public Material {
+class VertexBufferMat : public Material, public VertexBuffer<PositionColorVertex> {
 	public:
 		VertexBufferMat(const char *t_vert_file, const char *t_frag_file, const size_t &t_vertex_count);
 		void draw();
-		VertexBuffer<PositionColorVertex> getBuffer() { return m_buffer; }
 	private:
 		void init();
-		VertexBuffer<PositionColorVertex> m_buffer;
 		const size_t m_vertex_count;
 };

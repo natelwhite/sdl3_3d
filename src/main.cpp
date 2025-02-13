@@ -37,11 +37,10 @@ int main() {
 	const size_t VERTEX_COUNT { num_tangent_points * 3 };
 	const char *vert_shader { "PositionColor.vert" }, *frag_shader { "SolidColor.frag" };
 	VertexBufferMat mat {vert_shader, frag_shader, VERTEX_COUNT};
-	VertexBuffer<PositionColorVertex> vert_buffer { mat.getBuffer() };
 
 	// push vertices
 	SDL_FPoint origin {0, 0};
-	PositionColorVertex *buffer { vert_buffer.open() };
+	PositionColorVertex *buffer { mat.open() };
 	int buffer_index {};
 	PositionColorVertex vert;
 	for (int i = 0; i < num_tangent_points; i++) {
@@ -82,7 +81,7 @@ int main() {
 		}
 		buffer[buffer_index++] = vert;
 	}
-	vert_buffer.upload();
+	mat.upload();
 	buffer = nullptr;
 
 	// main loop

@@ -6,11 +6,13 @@ Material::Material(const char *t_vert_file, const char *t_frag_file)
 
 Material::~Material() {
 	const ContextData ctx { Context::get()->data() };
+	std::cout << "Release graphics pipeline" << std::endl;
 	SDL_ReleaseGPUGraphicsPipeline(ctx.gpu, m_pipeline);
 }
 
 void Material::refresh() {
 	const ContextData ctx { Context::get()->data() };
+	std::cout << "Release graphics pipeline" << std::endl;
 	SDL_ReleaseGPUGraphicsPipeline(ctx.gpu, m_pipeline);
 	init();
 }
@@ -56,6 +58,7 @@ SDL_GPUShader* Material::loadShader(const char *filename, Uint32 num_samplers, U
 		.num_uniform_buffers = num_uniform_buffers
 	};
 	// compile hlsl to spv
+	std::cout << "Create Shader" << std::endl;
 	SDL_GPUShader *result = SDL_ShaderCross_CompileGraphicsShaderFromHLSL(ctx.gpu, &hlsl_info, &metadata);
 	SDL_free(code);
 	if (result == nullptr) {
@@ -102,7 +105,9 @@ void BasicMat::init() {
 	if (m_pipeline == nullptr) {
 		SDL_Log("CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
 	}
+	std::cout << "Release shader" << std::endl;
 	SDL_ReleaseGPUShader(ctx.gpu, vert_shader);
+	std::cout << "Release shader" << std::endl;
 	SDL_ReleaseGPUShader(ctx.gpu, frag_shader);
 	vert_shader = nullptr;
 	frag_shader = nullptr;
@@ -135,7 +140,7 @@ void BasicMat::draw() {
 }
 
 VertexBufferMat::VertexBufferMat(const char *t_vert_file, const char *t_frag_file, const size_t &t_vertex_count) 
-	: Material(t_vert_file, t_frag_file), m_vertex_count(t_vertex_count), m_buffer(t_vertex_count) {
+	: Material(t_vert_file, t_frag_file), VertexBuffer<PositionColorVertex>(t_vertex_count), m_vertex_count(t_vertex_count) {
 	init();
 }
 
@@ -198,7 +203,9 @@ void VertexBufferMat::init() {
 	if (m_pipeline == nullptr) {
 		SDL_Log("CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
 	}
+	std::cout << "Release shader" << std::endl;
 	SDL_ReleaseGPUShader(ctx.gpu, vert_shader);
+	std::cout << "Release shader" << std::endl;
 	SDL_ReleaseGPUShader(ctx.gpu, frag_shader);
 	vert_shader = nullptr;
 	frag_shader = nullptr;
@@ -226,7 +233,7 @@ void VertexBufferMat::draw() {
 	SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(cmdbuf, &target_info, 1, NULL);
 	SDL_BindGPUGraphicsPipeline(render_pass, m_pipeline);
 	const SDL_GPUBufferBinding buffer_binding {
-		.buffer = m_buffer.address(),
+		.buffer = m_main_buffer,
 		.offset = 0
 	};
 	SDL_BindGPUVertexBuffers(render_pass, 0, &buffer_binding, 1);
