@@ -32,8 +32,6 @@ int main() {
 		}
 		tangent_points[static_cast<int>(i)] = calcTangent(deg, rad);
 		tangent_colors[static_cast<int>(i)] = calcColor(deg / 360);
-		SDL_FColor c { calcColor(deg / 360) };
-		std::cout << c.r << ", " << c.g << ", " << c.b << std::endl;
 	}
 
 	Renderer renderer {640, 480};
