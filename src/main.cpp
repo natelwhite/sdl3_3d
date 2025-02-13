@@ -1,13 +1,14 @@
 #include "Renderer.hpp"
 #include "Materials.hpp"
 #include <math.h>
+#include <iostream>
 
 Context* Context::self = 0;
 
 int main() {
 	// calculate tangent points
 	const int rad { 1 };
-	const int num_tangent_points { 36 };
+	const int num_tangent_points { 128 };
 	SDL_FPoint tangent_points[num_tangent_points];
 	SDL_FColor tangent_colors[num_tangent_points];
 	for (double i = 0; i < num_tangent_points; i++) {
@@ -31,6 +32,8 @@ int main() {
 		}
 		tangent_points[static_cast<int>(i)] = calcTangent(deg, rad);
 		tangent_colors[static_cast<int>(i)] = calcColor(deg / 360);
+		SDL_FColor c { calcColor(deg / 360) };
+		std::cout << c.r << ", " << c.g << ", " << c.b << std::endl;
 	}
 
 	Renderer renderer {640, 480};
@@ -73,10 +76,10 @@ int main() {
 				tangent_points[0].x,
 				tangent_points[0].y,
 				0,
-				static_cast<Uint8>(tangent_colors[0].r),
-				static_cast<Uint8>(tangent_colors[0].g),
-				static_cast<Uint8>(tangent_colors[0].b),
-				static_cast<Uint8>(tangent_colors[0].a),
+				255,
+				255,
+				255,
+				255,
 			};
 		}
 		buffer[buffer_index++] = vert;

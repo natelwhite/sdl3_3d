@@ -6,13 +6,11 @@ Material::Material(const char *t_vert_file, const char *t_frag_file)
 
 Material::~Material() {
 	const ContextData ctx { Context::get()->data() };
-	std::cout << "Release graphics pipeline" << std::endl;
 	SDL_ReleaseGPUGraphicsPipeline(ctx.gpu, m_pipeline);
 }
 
 void Material::refresh() {
 	const ContextData ctx { Context::get()->data() };
-	std::cout << "Release graphics pipeline" << std::endl;
 	SDL_ReleaseGPUGraphicsPipeline(ctx.gpu, m_pipeline);
 	init();
 }
@@ -58,7 +56,6 @@ SDL_GPUShader* Material::loadShader(const char *filename, Uint32 num_samplers, U
 		.num_uniform_buffers = num_uniform_buffers
 	};
 	// compile hlsl to spv
-	std::cout << "Create Shader" << std::endl;
 	SDL_GPUShader *result = SDL_ShaderCross_CompileGraphicsShaderFromHLSL(ctx.gpu, &hlsl_info, &metadata);
 	SDL_free(code);
 	if (result == nullptr) {
@@ -105,9 +102,7 @@ void BasicMat::init() {
 	if (m_pipeline == nullptr) {
 		SDL_Log("CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
 	}
-	std::cout << "Release shader" << std::endl;
 	SDL_ReleaseGPUShader(ctx.gpu, vert_shader);
-	std::cout << "Release shader" << std::endl;
 	SDL_ReleaseGPUShader(ctx.gpu, frag_shader);
 	vert_shader = nullptr;
 	frag_shader = nullptr;
@@ -203,9 +198,7 @@ void VertexBufferMat::init() {
 	if (m_pipeline == nullptr) {
 		SDL_Log("CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
 	}
-	std::cout << "Release shader" << std::endl;
 	SDL_ReleaseGPUShader(ctx.gpu, vert_shader);
-	std::cout << "Release shader" << std::endl;
 	SDL_ReleaseGPUShader(ctx.gpu, frag_shader);
 	vert_shader = nullptr;
 	frag_shader = nullptr;

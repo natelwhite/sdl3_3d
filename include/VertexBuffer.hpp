@@ -28,9 +28,7 @@ template<typename STORAGE_TYPE> class VertexBuffer {
 		}
 		~VertexBuffer() {
 			const ContextData ctx { Context::get()->data() };
-			std::cout << "Release transfer buffer" << std::endl;
 			SDL_ReleaseGPUTransferBuffer(ctx.gpu, m_transfer_buffer);
-			std::cout << "Release gpu buffer" << std::endl;
 			SDL_ReleaseGPUBuffer(ctx.gpu, m_main_buffer);
 			m_main_buffer = nullptr;
 			m_transfer_buffer = nullptr;

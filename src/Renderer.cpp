@@ -9,7 +9,6 @@ Renderer::Renderer(const int &t_width, const int &t_height) : m_width(t_width), 
 		return;
 	}
 	// create gpu device
-	std::cout << "create gpu" << std::endl;
 	SDL_GPUDevice *gpu = SDL_CreateGPUDevice(m_accepted_shader_formats, false, NULL);
 	if (gpu == nullptr) {
 		SDL_Log("CreateGPUDevice failed: %s", SDL_GetError());
@@ -17,7 +16,6 @@ Renderer::Renderer(const int &t_width, const int &t_height) : m_width(t_width), 
 	}
 	SDL_GPUShaderFormat mutual_format { SDL_GetGPUShaderFormats(gpu) };
 	// create window
-	std::cout << "create window" << std::endl;
 	SDL_Window *window = SDL_CreateWindow("Hello World", m_width, m_height, m_windowFlags);
 	if (window == nullptr) {
 		SDL_Log("CreateWindow failed: %s", SDL_GetError());
@@ -41,11 +39,8 @@ Renderer::Renderer(const int &t_width, const int &t_height) : m_width(t_width), 
 
 Renderer::~Renderer() {
 	ContextData ctx { Context::get()->data() };
-	std::cout << "release window from gpu" << std::endl;
 	SDL_ReleaseWindowFromGPUDevice(ctx.gpu, ctx.window);
-	std::cout << "destroy gpu" << std::endl;
 	SDL_DestroyGPUDevice(ctx.gpu);
-	std::cout << "Destroy window" << std::endl;
 	SDL_DestroyWindow(ctx.window);
 	Context::get()->set(ContextData{});
 }
