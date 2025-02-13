@@ -1,27 +1,87 @@
 #include "Renderer.hpp"
+#include <iostream>
+#include <math.h>
 
 int main() {
+	// calculate tangent points
+	const int rad { 1 };
+	const int num_tangent_points { 36 };
+	SDL_FPoint tangent_points[num_tangent_points];
+	SDL_FColor tangent_colors[num_tangent_points];
+	for (double i = 0; i < num_tangent_points; i++) {
+		SDL_FPoint result;
+		auto calcTangent = [](const double &degrees, const double &radius) -> SDL_FPoint {
+			const double PI { 3.14159265 };
+			return SDL_FPoint {
+				static_cast<float>(cos(degrees * PI / 180.0) * radius),
+				static_cast<float>(sin(degrees * PI / 180.0) * radius)
+			};
+		};
+		auto calcColor = [](const float &deg) -> SDL_FColor {
+			return SDL_FColor {deg * 255, deg * 255, deg * 255, 255};
+		};
+
+		double deg;
+		if (i == 0) {
+			deg = 0;
+		} else {
+			deg = (360.0 / num_tangent_points) * i;
+		}
+		tangent_points[static_cast<int>(i)] = calcTangent(deg, rad);
+		tangent_colors[static_cast<int>(i)] = calcColor(deg / 360);
+	}
+
 	Renderer renderer {640, 480};
-	if (!renderer.init()) {
-		return -1;
-	}
-	SDL_GPUShader *vert_shader = renderer.loadShader("RawTriangle.vert", 0, 0, 0, 0);
-	if (vert_shader == nullptr) {
-		return -1;
-	}
-	SDL_GPUShader *frag_shader = renderer.loadShader("SolidColor.frag", 0, 0, 0, 0);
-	if (frag_shader == nullptr) {
-		return -1;
-	}
+	const size_t VERTEX_COUNT { num_tangent_points * 3 };
+	const char *vert_shader { "PositionColor.vert" }, *frag_shader { "SolidColor.frag" };
+	VertexBufferMat mat {vert_shader, frag_shader, VERTEX_COUNT};
+	VertexBuffer<PositionColorVertex> vert_buffer { mat.getBuffer() };
 
-	SDL_GPUGraphicsPipeline *pipeline = renderer.createGraphicsPipeline(vert_shader, frag_shader);
-	if (pipeline == nullptr) {
-		return -1;
-	}
+	// push vertices
+	SDL_FPoint origin {0, 0};
+	PositionColorVertex *buffer { vert_buffer.open() };
+	int buffer_index {};
+	PositionColorVertex vert;
+	for (int i = 0; i < num_tangent_points; i++) {
+		vert = {
+			tangent_points[i].x,
+			tangent_points[i].y,
+			0,
+			static_cast<Uint8>(tangent_colors[i].r),
+			static_cast<Uint8>(tangent_colors[i].g),
+			static_cast<Uint8>(tangent_colors[i].b),
+			static_cast<Uint8>(tangent_colors[i].a),
+		};
+		buffer[buffer_index++] = vert;
 
-	// no longer needed by gpu after making pipeline
-	renderer.releaseShader(vert_shader);
-	renderer.releaseShader(frag_shader);
+		vert = { origin.x, origin.y, 0, 0, 0, 0, 255 };
+		buffer[buffer_index++] = vert;
+
+		if (i + 1 < num_tangent_points) {
+			vert = {
+				tangent_points[i + 1].x,
+				tangent_points[i + 1].y,
+				0,
+				static_cast<Uint8>(tangent_colors[i + 1].r),
+				static_cast<Uint8>(tangent_colors[i + 1].g),
+				static_cast<Uint8>(tangent_colors[i + 1].b),
+				static_cast<Uint8>(tangent_colors[i + 1].a),
+			};
+		} else {
+			vert = {
+				tangent_points[0].x,
+				tangent_points[0].y,
+				0,
+				static_cast<Uint8>(tangent_colors[0].r),
+				static_cast<Uint8>(tangent_colors[0].g),
+				static_cast<Uint8>(tangent_colors[0].b),
+				static_cast<Uint8>(tangent_colors[0].a),
+			};
+		}
+		buffer[buffer_index++] = vert;
+	}
+	vert_buffer.upload();
+	buffer = nullptr;
 
 	// main loop
 	bool quit = false;
@@ -38,33 +98,12 @@ int main() {
 					quit = true;
 					break;
 				case SDLK_R:
-					vert_shader = renderer.loadShader("RawTriangle.vert", 0, 0, 0, 0);
-					frag_shader = renderer.loadShader("SolidColor.frag", 0, 0, 0, 0);
-					if (vert_shader == nullptr) {
-						SDL_Log("Could not reload vertex shader: %s", SDL_GetError());
-						continue;
-					}
-					if (frag_shader == nullptr) {
-						SDL_Log("Could not reload fragment shader: %s", SDL_GetError());
-						continue;
-					}
-					SDL_GPUGraphicsPipeline *new_pipeline = renderer.createGraphicsPipeline(vert_shader, frag_shader);
-					if (new_pipeline == nullptr) {
-						SDL_Log("Could not create graphics pipeline: %s", SDL_GetError());
-						continue;
-					}
-
-					renderer.releaseShader(vert_shader);
-					renderer.releaseShader(frag_shader);
-					renderer.releaseGraphicsPipeline(pipeline);
-					pipeline = new_pipeline;
+					mat.refresh();
 					break;
 				}
 			}
 		}
-		renderer.draw(pipeline);
+		mat.draw();
 	}
-	renderer.releaseGraphicsPipeline(pipeline);
-	renderer.quit();
 	return 0;
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(sdl3_hello_world)
+project(sdl3_3d)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
