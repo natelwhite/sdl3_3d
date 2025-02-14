@@ -1,6 +1,5 @@
 #include "Renderer.hpp"
 #include "Context.hpp"
-#include "SDL3/SDL_gpu.h"
 
 Renderer::Renderer(const int &t_width, const int &t_height) : m_width(t_width), m_height(t_height) {
 	// init SDL video
@@ -16,7 +15,7 @@ Renderer::Renderer(const int &t_width, const int &t_height) : m_width(t_width), 
 	}
 	SDL_GPUShaderFormat mutual_format { SDL_GetGPUShaderFormats(gpu) };
 	// create window
-	SDL_Window *window = SDL_CreateWindow("Hello World", m_width, m_height, m_windowFlags);
+	SDL_Window *window = SDL_CreateWindow("3D", m_width, m_height, m_windowFlags);
 	if (window == nullptr) {
 		SDL_Log("CreateWindow failed: %s", SDL_GetError());
 		return;
@@ -28,6 +27,7 @@ Renderer::Renderer(const int &t_width, const int &t_height) : m_width(t_width), 
 	}
 	const ContextData ctx {
 		window,
+		m_width, m_height,
 		gpu,
 		mutual_format,
 		SDL_GetBasePath(),
