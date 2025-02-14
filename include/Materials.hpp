@@ -1,5 +1,5 @@
 #pragma once
-#include "VertexBuffer.hpp"
+#include "Buffer.hpp"
 #include <SDL3_shadercross/SDL_shadercross.h>
 #include <iostream>
 
