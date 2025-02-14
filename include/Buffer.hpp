@@ -61,10 +61,10 @@ template<typename STORAGE_TYPE> class Buffer {
 			SDL_EndGPUCopyPass(copy_pass);
 			SDL_SubmitGPUCommandBuffer(upload_cmd_buf);
 		}
-		SDL_GPUBuffer* address() { return m_main_buffer; }
-	protected:
-		SDL_GPUBuffer *m_main_buffer { nullptr };
+	SDL_GPUBuffer* get() const { return m_main_buffer; }
+	size_t getCount() const { return m_count; }
 	private:
+		SDL_GPUBuffer *m_main_buffer { nullptr };
 		const size_t m_count;
 		SDL_GPUTransferBuffer *m_transfer_buffer { nullptr };
 };
@@ -73,3 +73,9 @@ template<typename STORAGE_TYPE> class VertexBuffer : public Buffer<STORAGE_TYPE>
 	public:
 		VertexBuffer(const size_t &t_count) : Buffer<STORAGE_TYPE>(t_count, SDL_GPU_BUFFERUSAGE_VERTEX) { }
 };
+
+template<typename STORAGE_TYPE> class IndexBuffer : public Buffer<STORAGE_TYPE> {
+	public:
+		IndexBuffer(const size_t &t_count) : Buffer<STORAGE_TYPE>(t_count, SDL_GPU_BUFFERUSAGE_INDEX) { }
+};
+
