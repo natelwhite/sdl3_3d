@@ -1,6 +1,5 @@
 #include "Renderer.hpp"
 #include "Materials.hpp"
-#include "SDL3/SDL_stdinc.h"
 #include <math.h>
 #include <iostream>
 
@@ -12,27 +11,27 @@ int main() {
 	const int num_tangent_points { 128 };
 	SDL_FPoint tangent_points[num_tangent_points];
 	SDL_FColor tangent_colors[num_tangent_points];
-	for (int i = 0; i < num_tangent_points; i++) {
+	for (double i = 0; i < num_tangent_points; i++) {
 		SDL_FPoint result;
-		auto calcTangent = [](const float &degrees, const float &radius) -> SDL_FPoint {
+		auto calcTangent = [](const double &degrees, const double &radius) -> SDL_FPoint {
 			const double PI { 3.14159265 };
 			return SDL_FPoint {
-				static_cast<float>(SDL_cos(degrees * PI / 180.0) * radius),
-				static_cast<float>(SDL_sin(degrees * PI / 180.0) * radius)
+				static_cast<float>(cos(degrees * PI / 180.0) * radius),
+				static_cast<float>(sin(degrees * PI / 180.0) * radius)
 			};
 		};
 		auto calcColor = [](const float &deg) -> SDL_FColor {
 			return SDL_FColor {deg * 255, deg * 255, deg * 255, 255};
 		};
 
-		float deg;
+		double deg;
 		if (i == 0) {
 			deg = 0;
 		} else {
 			deg = (360.0 / num_tangent_points) * i;
 		}
-		tangent_points[i] = calcTangent(deg, rad);
-		tangent_colors[i] = calcColor(deg / 360);
+		tangent_points[static_cast<int>(i)] = calcTangent(deg, rad);
+		tangent_colors[static_cast<int>(i)] = calcColor(deg / 360);
 	}
 
 	Renderer renderer {640, 480};

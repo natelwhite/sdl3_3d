@@ -1,45 +1,4 @@
 #include "Materials.hpp"
-Vector3 Vector3::normalize() const {
-	float mag { 
-		SDL_sqrtf(
-			(this->at(0) * this->at(0)) +
-			(this->at(1) * this->at(1)) +
-			(this->at(2) * this->at(2))
-		)
-	};
-	return Vector3 {
-		this->at(0) / mag,
-		this->at(1) / mag,
-		this->at(2) / mag
-	};
-}
-
-float Vector3::dot(const Vector3 &other) const {
-	return (this->at(0) * other.at(0)) + (this->at(1) * other.at(1)) + (this->at(2) * other.at(2));
-}
-Vector3 Vector3::cross(const Vector3 &other) const {
-	return {
-		this->at(1) * other.at(2) - other.at(1) * this->at(2),
-		-(this->at(0) * other.at(2) - other.at(0) * this->at(2)),
-		this->at(0) * other.at(1) - other.at(0) * this->at(1)
-	};
-}
-
-Matrix4x4 Matrix4x4:: operator * (const Matrix4x4 &other) {
-	auto mul = [this, other](const int &row, const int &col) -> float {
-		return 
-			this->at(row).at(0) * other.at(0).at(col) +
-			this->at(row).at(1) * other.at(1).at(col) +
-			this->at(row).at(2) * other.at(2).at(col) +
-			this->at(row).at(3) * other.at(3).at(col);
-	};
-	return Matrix4x4 {
-		Vector4{ mul(0, 0), mul(0, 1), mul(0, 2), mul(0, 3) },
-		Vector4{ mul(1, 0), mul(1, 1), mul(1, 2), mul(1, 3) },
-		Vector4{ mul(2, 0), mul(2, 1), mul(2, 2), mul(2, 3) },
-		Vector4{ mul(3, 0), mul(3, 1), mul(3, 2), mul(3, 3) }
-	};
-}
 
 Material::Material(const char *t_vert_file, const char *t_frag_file)
 	: m_vert_file(t_vert_file), m_frag_file(t_frag_file)  {
@@ -54,33 +13,6 @@ void Material::refresh() {
 	const ContextData ctx { Context::get()->data() };
 	SDL_ReleaseGPUGraphicsPipeline(ctx.gpu, m_pipeline);
 	init();
-}
-
-const Matrix4x4 Material::getFov(const float &fov, const float &aspect, const float &near, const float &far) {
-	float num { 1.0f / SDL_tanf(fov * 0.5f) };
-	return Matrix4x4 {
-		Vector4 { num / aspect, 0, 0, 0 },
-		Vector4 { 0, num, 0, 0 },
-		Vector4 { 0, 0, far / (near - far), -1 },
-		Vector4 { 0, 0, (near * far) / (near - far), 0 }
-	};
-}
-
-const Matrix4x4 getLookAt(const Vector3 &camera_pos, const Vector3 &camera_target, const Vector3 &camera_up) {
-	const Vector3 target_to_pos {
-		camera_pos.at(0) - camera_target.at(0),
-		camera_pos.at(1) - camera_target.at(1),
-		camera_pos.at(2) - camera_target.at(2)
-	};
-	const Vector3 a { target_to_pos.normalize() };
-	const Vector3 b { camera_up.cross(a).normalize() };
-	const Vector3 c { a.cross(b) };
-	return Matrix4x4 {
-		b.at(0), c.at(0), a.at(0), 0,
-		b.at(1), c.at(1), a.at(1), 0,
-		b.at(2), c.at(2), a.at(2), 0,
-		-b.dot(camera_pos), -c.dot(camera_pos), -a.dot(camera_pos), 1
-	};
 }
 
 SDL_GPUShader* Material::loadShader(const char *filename, Uint32 num_samplers, Uint32 num_uniform_buffers, Uint32 num_storage_buffers, Uint32 num_storage_textures) {
