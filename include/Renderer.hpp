@@ -1,6 +1,5 @@
 #pragma once
 #include <SDL3/SDL.h>
-#include <SDL3_shadercross/SDL_shadercross.h>
 #include <iostream>
 
 class Renderer {
@@ -11,7 +10,7 @@ class Renderer {
 
 	private:
 		Uint32 m_width, m_height; // window width & height
-		const SDL_WindowFlags m_windowFlags = SDL_WINDOW_RESIZABLE;
+		const SDL_WindowFlags m_windowFlags = SDL_WINDOW_ALWAYS_ON_TOP;
 		const SDL_GPUShaderFormat m_accepted_shader_formats = SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXBC | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL;
 };
 
