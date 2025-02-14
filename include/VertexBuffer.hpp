@@ -1,14 +1,15 @@
 #pragma once
 #include <SDL3/SDL_log.h>
 #include "Context.hpp"
+#include "SDL3/SDL_gpu.h"
 #include <iostream>
 
-template<typename STORAGE_TYPE> class VertexBuffer {
+template<typename STORAGE_TYPE> class Buffer {
 	public:
-		VertexBuffer(const size_t &t_count) : m_count(t_count) {
+		Buffer(const size_t &t_count, const SDL_GPUTextureUsageFlags &buffer_usage) : m_count(t_count) {
 			const ContextData ctx { Context::get()->data() };
 			const SDL_GPUBufferCreateInfo main_buff_info {
-				.usage = SDL_GPU_BUFFERUSAGE_VERTEX,
+				.usage = buffer_usage,
 				.size = static_cast<Uint32>(sizeof(STORAGE_TYPE) * m_count)
 			};
 			m_main_buffer = SDL_CreateGPUBuffer(ctx.gpu, &main_buff_info);
@@ -26,7 +27,7 @@ template<typename STORAGE_TYPE> class VertexBuffer {
 				return;
 			}
 		}
-		~VertexBuffer() {
+		~Buffer() {
 			const ContextData ctx { Context::get()->data() };
 			SDL_ReleaseGPUTransferBuffer(ctx.gpu, m_transfer_buffer);
 			SDL_ReleaseGPUBuffer(ctx.gpu, m_main_buffer);
@@ -66,4 +67,9 @@ template<typename STORAGE_TYPE> class VertexBuffer {
 	private:
 		const size_t m_count;
 		SDL_GPUTransferBuffer *m_transfer_buffer { nullptr };
+};
+
+template<typename STORAGE_TYPE> class VertexBuffer : public Buffer<STORAGE_TYPE> {
+	public:
+		VertexBuffer(const size_t &t_count) : Buffer<STORAGE_TYPE>(t_count, SDL_GPU_BUFFERUSAGE_VERTEX) { }
 };
