@@ -1,45 +1,5 @@
 #include "Materials.hpp"
 
-Vector3 Vector3::normalize() const {
-	float mag { 
-		SDL_sqrtf(
-			(this->at(0) * this->at(0)) +
-			(this->at(1) * this->at(1)) +
-			(this->at(2) * this->at(2))
-		)
-	};
-	return Vector3 {
-		this->at(0) / mag,
-		this->at(1) / mag,
-		this->at(2) / mag
-	};
-}
-float Vector3::dot(const Vector3 &other) const {
-	return (this->at(0) * other.at(0)) + (this->at(1) * other.at(1)) + (this->at(2) * other.at(2));
-}
-Vector3 Vector3::cross(const Vector3 &other) const {
-	return {
-		this->at(1) * other.at(2) - other.at(1) * this->at(2),
-		-(this->at(0) * other.at(2) - other.at(0) * this->at(2)),
-		this->at(0) * other.at(1) - other.at(0) * this->at(1)
-	};
-}
-Matrix4x4 Matrix4x4:: operator * (const Matrix4x4 &other) {
-	auto mul = [this, other](const int &row, const int &col) -> float {
-		return 
-			this->at(row).at(0) * other.at(0).at(col) +
-			this->at(row).at(1) * other.at(1).at(col) +
-			this->at(row).at(2) * other.at(2).at(col) +
-			this->at(row).at(3) * other.at(3).at(col);
-	};
-	return Matrix4x4 {
-		Vector4{ mul(0, 0), mul(0, 1), mul(0, 2), mul(0, 3) },
-		Vector4{ mul(1, 0), mul(1, 1), mul(1, 2), mul(1, 3) },
-		Vector4{ mul(2, 0), mul(2, 1), mul(2, 2), mul(2, 3) },
-		Vector4{ mul(3, 0), mul(3, 1), mul(3, 2), mul(3, 3) }
-	};
-}
-
 Material::Material(const char *t_vert_file, const char *t_frag_file)
 	: m_vert_file(t_vert_file), m_frag_file(t_frag_file)  {
 }
@@ -53,6 +13,33 @@ void Material::refresh() {
 	const ContextData ctx { Context::get()->data() };
 	SDL_ReleaseGPUGraphicsPipeline(ctx.gpu, m_pipeline);
 	init();
+}
+
+Matrix4x4 Material::getFov(const float &fov, const float &aspect, const float &near, const float &far)  const {
+	const float num { 1.0f / static_cast<float>(SDL_tanf(fov * 0.5f)) };
+	return Matrix4x4 {
+		Vector4 { num / aspect, 0, 0, 0 },
+		Vector4 { 0, num, 0, 0 },
+		Vector4 { 0, 0, far / (near - far), -1 },
+		Vector4 { 0, 0, (near * far) / (near - far), 0 },
+	};
+}
+
+Matrix4x4 Material::getLookAt(const Vector3 &camera_pos, const Vector3 &camera_target, const Vector3 &camera_up) const {
+	const Vector3 target_to_pos {
+		camera_pos.at(0) - camera_target.at(0),
+		camera_pos.at(1) - camera_target.at(1),
+		camera_pos.at(2) - camera_target.at(2),
+	};
+	const Vector3 a { target_to_pos.normalize() };
+	const Vector3 b { camera_up.cross(a).normalize() };
+	const Vector3 c { a.cross(b) };
+	return Matrix4x4 {
+		Vector4 { b.at(0), c.at(0), a.at(0), 0 },
+		Vector4 { b.at(1), c.at(1), a.at(1), 0 },
+		Vector4 { b.at(2), c.at(2), a.at(2), 0 },
+		Vector4 { -b.dot(camera_pos), -c.dot(camera_pos), -a.dot(camera_pos) }
+	};
 }
 
 SDL_GPUShader* Material::loadShader(const char *filename, Uint32 num_samplers, Uint32 num_uniform_buffers, Uint32 num_storage_buffers, Uint32 num_storage_textures) {
@@ -175,7 +162,7 @@ void BasicMat::draw() {
 }
 
 VertexBufferMat::VertexBufferMat(const char *t_vert_file, const char *t_frag_file, const size_t &t_vertex_count) 
-	: Material(t_vert_file, t_frag_file), VertexBuffer<PositionColorVertex>(t_vertex_count), m_vertex_count(t_vertex_count) {
+	: Material(t_vert_file, t_frag_file), m_buffer(t_vertex_count) {
 	init();
 }
 
@@ -266,12 +253,170 @@ void VertexBufferMat::draw() {
 	SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(cmdbuf, &target_info, 1, NULL);
 	SDL_BindGPUGraphicsPipeline(render_pass, m_pipeline);
 	const SDL_GPUBufferBinding buffer_binding {
-		.buffer = m_main_buffer,
+		.buffer = m_buffer.get(),
 		.offset = 0
 	};
 	SDL_BindGPUVertexBuffers(render_pass, 0, &buffer_binding, 1);
-	SDL_DrawGPUPrimitives(render_pass, m_vertex_count, 1, 0, 0);
+	SDL_DrawGPUPrimitives(render_pass, m_buffer.getCount(), 1, 0, 0);
 	SDL_EndGPURenderPass(render_pass);
 	SDL_SubmitGPUCommandBuffer(cmdbuf);
 }
 
+ThreeDMat::ThreeDMat(const char *t_vert_file, const char *t_frag_file, const size_t &t_vertex_count, const size_t &t_index_count) 
+	: Material(t_vert_file, t_frag_file), m_vert_buffer(t_vertex_count), m_index_buffer(t_index_count) {
+	init();
+}
+
+ThreeDMat::~ThreeDMat() {
+	const ContextData &ctx { Context::get()->data() };
+	SDL_ReleaseGPUTexture(ctx.gpu, m_texture);
+	SDL_ReleaseGPUSampler(ctx.gpu, m_sampler);
+	m_texture = nullptr;
+	m_sampler = nullptr;
+}
+
+void ThreeDMat::init() {
+	SDL_GPUShader *vert_shader = loadShader(m_vert_file, 0, 0, 0, 0);
+	SDL_GPUShader *frag_shader = loadShader(m_frag_file, 0, 0, 0, 0);
+	const SDL_GPUColorTargetBlendState target_blend_state {
+		// color
+		.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+		.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+		// alpha
+		.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+		.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+	};
+	ContextData ctx { Context::get()->data() };
+	const SDL_GPUColorTargetDescription target_description {
+		.format = SDL_GetGPUSwapchainTextureFormat(ctx.gpu, ctx.window),
+		.blend_state = target_blend_state
+	};
+	const SDL_GPUGraphicsPipelineTargetInfo target_info {
+		.color_target_descriptions = &target_description,
+		.num_color_targets = 1,
+	};
+	const SDL_GPUVertexBufferDescription vert_buff_description {
+		.slot = 0,
+		.pitch = sizeof(PositionVertex),
+		.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+		.instance_step_rate = 0,
+	};
+	const SDL_GPUVertexAttribute vert_attributes[1] {
+		{
+			.location = 0,
+			.buffer_slot = 0,
+			.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
+			.offset = 0
+		}
+	};
+	SDL_GPUVertexInputState vert_input_state {
+		.vertex_buffer_descriptions = &vert_buff_description,
+		.num_vertex_buffers = 1,
+		.vertex_attributes = vert_attributes,
+		.num_vertex_attributes = 1
+	};
+	const SDL_GPUGraphicsPipelineCreateInfo m_pipeline_info {
+		.vertex_shader = vert_shader,
+		.fragment_shader = frag_shader,
+		.vertex_input_state = vert_input_state,
+		.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+		.rasterizer_state = { SDL_GPU_FILLMODE_FILL },
+		.target_info = target_info,
+	};
+	m_pipeline = SDL_CreateGPUGraphicsPipeline(ctx.gpu, &m_pipeline_info);
+	if (m_pipeline == nullptr) {
+		SDL_Log("CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
+	}
+	SDL_ReleaseGPUShader(ctx.gpu, vert_shader);
+	SDL_ReleaseGPUShader(ctx.gpu, frag_shader);
+	vert_shader = nullptr;
+	frag_shader = nullptr;
+	SDL_GPUTextureCreateInfo texture_info {
+		.type = SDL_GPU_TEXTURETYPE_CUBE,
+		.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+		.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER,
+		.width = 64,
+		.height = 64,
+		.layer_count_or_depth = 6,
+		.num_levels = 1
+	};
+	m_texture = SDL_CreateGPUTexture(ctx.gpu, &texture_info);
+	if (m_texture == nullptr) {
+		SDL_Log("CreateGPUTexture failed: %s", SDL_GetError());
+		return;
+	}
+	SDL_GPUSamplerCreateInfo sampler_info {
+		.min_filter = SDL_GPU_FILTER_NEAREST,
+		.mag_filter = SDL_GPU_FILTER_NEAREST,
+		.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+		.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+		.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+		.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE
+	};
+	m_sampler = SDL_CreateGPUSampler(ctx.gpu, &sampler_info);
+	if (m_texture == nullptr) {
+		SDL_Log("CreateGPUSampler failed: %s", SDL_GetError());
+		return;
+	}
+	SDL_GPUCommandBuffer *cmdbuf = SDL_AcquireGPUCommandBuffer(ctx.gpu);
+	if (cmdbuf == nullptr) {
+		SDL_Log("AcquireGPUCommandBuffer failed%s", SDL_GetError());
+		return;
+	}
+	const SDL_FColor clear_colors[] {
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.0f, 0.0f, 1.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 0.0f, 1.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 1.0f }
+	};
+	for (int i = 0; i < 6; ++i) {
+		const SDL_GPUColorTargetInfo texture_target_info {
+			.texture = m_texture,
+			.layer_or_depth_plane = static_cast<Uint32>(i),
+			.clear_color = clear_colors[i],
+			.load_op = SDL_GPU_LOADOP_CLEAR,
+			.store_op = SDL_GPU_STOREOP_STORE
+		};
+		SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(cmdbuf, &texture_target_info, 1, NULL);
+		SDL_EndGPURenderPass(render_pass);
+	}
+	SDL_SubmitGPUCommandBuffer(cmdbuf);
+}
+
+void ThreeDMat::draw() {
+	const ContextData ctx { Context::get()->data() };
+	SDL_GPUCommandBuffer *cmdbuf = SDL_AcquireGPUCommandBuffer(ctx.gpu);
+	if (cmdbuf == nullptr) {
+		SDL_Log("AcquireGPUCommandBuffer failed%s", SDL_GetError());
+		return;
+	}
+	SDL_GPUTexture *swapchain_texture;
+	if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmdbuf, ctx.window, &swapchain_texture, NULL, NULL)) {
+		SDL_Log("WaitAndAcquireGPUSwapchainTexture failed: %s", SDL_GetError());
+		return;
+	}
+	const SDL_FColor clear_color {0.0f, 0.0f, 0.0f, 1.0f};
+	const SDL_GPUColorTargetInfo target_info {
+		.texture = swapchain_texture,
+		.clear_color = clear_color,
+		.load_op = SDL_GPU_LOADOP_CLEAR,
+		.store_op = SDL_GPU_STOREOP_STORE
+	};
+	Matrix4x4 proj { getFov(75.0f * SDL_PI_F / 180.0f, static_cast<float>(ctx.width) / static_cast<float>(ctx.height), 0.01f, 100.0f) };
+	Matrix4x4 view { getLookAt(ctx.camera_pos, {0, 0, 0}, {0, 1, 0}) };
+	Matrix4x4 view_proj { view * proj };
+	const SDL_GPUBufferBinding vert_buffer_binding { m_vert_buffer.get(), 0 };
+	const SDL_GPUBufferBinding index_buffer_binding { m_index_buffer.get(), 0 };
+	const SDL_GPUTextureSamplerBinding texture_sampler_binding { m_texture, m_sampler };
+	SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(cmdbuf, &target_info, 1, NULL);
+	SDL_BindGPUGraphicsPipeline(render_pass, m_pipeline);
+	SDL_BindGPUVertexBuffers(render_pass, 0, &vert_buffer_binding, 1);
+	SDL_BindGPUIndexBuffer(render_pass, &index_buffer_binding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+	SDL_BindGPUFragmentSamplers(render_pass, 0, &texture_sampler_binding, 1);
+	SDL_PushGPUVertexUniformData(cmdbuf, 0, &view_proj, sizeof(view_proj));
+	SDL_DrawGPUIndexedPrimitives(render_pass, m_index_buffer.getCount(), 1, 0, 0, 0);
+	SDL_EndGPURenderPass(render_pass);
+	SDL_SubmitGPUCommandBuffer(cmdbuf);
+}
