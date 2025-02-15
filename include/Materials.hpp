@@ -4,6 +4,7 @@
 
 #include "Buffer.hpp"
 #include "Math.hpp"
+#include "SDL3/SDL_gpu.h"
 
 struct PositionColorVertex {
 	float x, y, z;
@@ -12,6 +13,11 @@ struct PositionColorVertex {
 
 struct PositionVertex {
 	float x, y, z;
+};
+
+struct PositionTextureVertex {
+	float x, y, z;
+	float u, v;
 };
 
 class Material {
@@ -24,42 +30,26 @@ class Material {
 		virtual void init() = 0;
 		const char *m_vert_file, *m_frag_file;
 		SDL_GPUGraphicsPipeline *m_pipeline;
-		SDL_GPUGraphicsPipelineCreateInfo m_pipeline_info;
+};
+
+class SceneMaterial {
+	public:
+		SceneMaterial(const size_t &world_vert_count, const size_t &world_index_count);
+		~SceneMaterial();
+		void draw();
+		VertexBuffer<PositionColorVertex>* worldVertBuffer() { return &m_world_v; }
+		IndexBuffer* worldIndexBuffer() { return &m_world_i; }
+	private:
+		void init();
+		VertexBuffer<PositionColorVertex> m_world_v;
+		IndexBuffer m_world_i;
+		VertexBuffer<PositionTextureVertex> m_screen_v;
+		IndexBuffer m_screen_i;
+		SDL_GPUGraphicsPipeline *m_world_pipeline, *m_screen_pipeline;
+		SDL_GPUTexture *m_scene_color, *m_scene_depth;
+		SDL_GPUSampler *m_sampler;
 
 		Matrix4x4 getFov(const float &fov, const float &aspect, const float &near, const float &far) const;
 		Matrix4x4 getLookAt(const Vector3 &camera_pos, const Vector3 &camera_target, const Vector3 &camera_up) const;
-		SDL_GPUShader* loadShader(const char *filename, Uint32 num_samplers, Uint32 num_uniform_buffers, Uint32 num_storag_buffers, Uint32 num_storage_textures);
-};
-
-class BasicMat : public Material {
-	public:
-		BasicMat(const char *t_vert_file, const char *t_frag_file);
-		void draw();
-	private:
-		void init();
-};
-
-class VertexBufferMat : public Material {
-	public:
-		VertexBufferMat(const char *t_vert_file, const char *t_frag_file, const size_t &t_vertex_count);
-		void draw();
-		VertexBuffer<PositionColorVertex>* vertBuffer() { return &m_buffer; }
-	private:
-		void init();
-		VertexBuffer<PositionColorVertex> m_buffer;
-};
-
-class ThreeDMat : public Material {
-	public:
-		ThreeDMat(const char *t_vert_file, const char *t_frag_file, const size_t &t_vertex_count, const size_t &t_index_count);
-		~ThreeDMat();
-		void draw();
-		VertexBuffer<PositionVertex>* vertBuffer() { return &m_vert_buffer; }
-		IndexBuffer<Uint16>* indexBuffer() { return &m_index_buffer; }
-	private:
-		void init();
-		VertexBuffer<PositionVertex> m_vert_buffer;
-		IndexBuffer<Uint16> m_index_buffer;
-		SDL_GPUTexture *m_texture;
-		SDL_GPUSampler *m_sampler;
+		SDL_GPUShader* loadShader(const char *filename, const Uint32 &num_samplers, const Uint32 &num_uniform_buffers, const Uint32 &num_storage_buffers, const Uint32 &num_storage_textures);
 };

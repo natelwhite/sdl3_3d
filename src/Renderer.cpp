@@ -31,7 +31,8 @@ Renderer::Renderer(const int &t_width, const int &t_height) : m_width(t_width), 
 		gpu,
 		mutual_format,
 		SDL_GetBasePath(),
-		"shaders/source/"
+		"shaders/source/",
+		{30, 30, 30}
 	};
 	Context::get()->set(ctx);
 	return;
@@ -43,5 +44,5 @@ Renderer::~Renderer() {
 	SDL_DestroyGPUDevice(ctx.gpu);
 	SDL_DestroyWindow(ctx.window);
 	Context::get()->set(ContextData{});
+	SDL_Quit();
 }
-
