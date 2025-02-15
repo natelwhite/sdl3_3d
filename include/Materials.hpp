@@ -34,7 +34,7 @@ class Material {
 
 class SceneMaterial {
 	public:
-		SceneMaterial(const size_t &world_vert_count, const size_t &world_index_count);
+		SceneMaterial();
 		~SceneMaterial();
 		void draw();
 		VertexBuffer<PositionColorVertex>* worldVertBuffer() { return &m_world_v; }

@@ -5,55 +5,9 @@
 Context* Context::self = 0;
 
 int main() {
-	const size_t VERTEX_COUNT { 24 }, INDEX_COUNT { 36 };
-	const PositionColorVertex vertices[VERTEX_COUNT] {
-		{ -10, -10, -10, 255, 0, 0, 255 },
-		{ 10, -10, -10, 255, 0, 0, 255 },
-		{ 10, 10, -10, 255, 0, 0, 255 },
-		{ -10, 10, -10, 255, 0, 0, 255 },
-
-		{ -10, -10, 10, 255, 255, 0, 255 },
-		{ 10, -10, 10, 255, 255, 0, 255 },
-		{ 10, 10, 10, 255, 255, 0, 255 },
-		{ -10, 10, 10, 255, 255, 0, 255 },
-
-		{ -10, -10, -10, 255, 0, 255, 255 },
-		{ -10, 10, -10, 255, 0, 255, 255 },
-		{ -10, 10, 10, 255, 0, 255, 255 },
-		{ -10, -10, 10, 255, 0, 255, 255 },
-
-		{ 10, -10, -10, 0, 255, 0, 255 },
-		{ 10, 10, -10, 0, 255, 0, 255 },
-		{ 10, 10, 10, 0, 255, 0, 255 },
-		{ 10, -10, 10, 0, 255, 0, 255 },
-
-		{ -10, -10, -10, 255, 255, 255 },
-		{ -10, -10, 10, 255, 255, 255 },
-		{ 10, -10, 10, 255, 255, 255 },
-		{ 10, -10, -10, 255, 255, 255 },
-
-		{ -10, 10, -10, 0, 0, 255, 255 },
-		{ -10, 10, 10, 0, 0, 255, 255 },
-		{ 10, 10, 10, 0, 0, 255, 255 },
-		{ 10, 10, -10, 0, 0, 255, 255 },
-	};
-	const Uint16 indices[INDEX_COUNT] {
-		 0,  1,  2,  0,  2,  3,
-		 6,  5,  4,  7,  6,  4,
-		 8,  9, 10,  8, 10, 11,
-		14, 13, 12, 15, 14, 12,
-		16, 17, 18, 16, 18, 19,
-		22, 21, 20, 23, 22, 20
-	};
 
 	Renderer renderer {640, 480};
-	SceneMaterial mat {VERTEX_COUNT, INDEX_COUNT};
-
-	// push vertices
-	SDL_memcpy(mat.worldVertBuffer()->open(), vertices, sizeof(PositionColorVertex) * VERTEX_COUNT);
-	mat.worldVertBuffer()->upload();
-	Uint16 *data = static_cast<Uint16*>(SDL_memcpy(mat.worldIndexBuffer()->open(), indices, sizeof(Uint16) * INDEX_COUNT));
-	mat.worldIndexBuffer()->upload();
+	SceneMaterial mat {};
 
 	// main loop
 	bool quit = false;

@@ -88,8 +88,8 @@ SDL_GPUShader* SceneMaterial::loadShader(const char *filename, const Uint32 &num
 	return result;
 }
 
-SceneMaterial::SceneMaterial(const size_t &world_vert_count, const size_t &world_index_count)
-	: m_world_v(world_vert_count), m_world_i(world_index_count), m_screen_v(4), m_screen_i(6) {
+SceneMaterial::SceneMaterial()
+	: m_world_v(24), m_world_i(36), m_screen_v(4), m_screen_i(6) {
 	init();
 }
 
@@ -300,18 +300,61 @@ void SceneMaterial::init() {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUSampler failed: %s", SDL_GetError());
 	}
 	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUSampler");
+	const PositionColorVertex world_vertices[24] {
+		{ -10, -10, -10, 255, 0, 0, 255 },
+		{ 10, -10, -10, 255, 0, 0, 255 },
+		{ 10, 10, -10, 255, 0, 0, 255 },
+		{ -10, 10, -10, 255, 0, 0, 255 },
 
+		{ -10, -10, 10, 255, 255, 0, 255 },
+		{ 10, -10, 10, 255, 255, 0, 255 },
+		{ 10, 10, 10, 255, 255, 0, 255 },
+		{ -10, 10, 10, 255, 255, 0, 255 },
+
+		{ -10, -10, -10, 255, 0, 255, 255 },
+		{ -10, 10, -10, 255, 0, 255, 255 },
+		{ -10, 10, 10, 255, 0, 255, 255 },
+		{ -10, -10, 10, 255, 0, 255, 255 },
+
+		{ 10, -10, -10, 0, 255, 0, 255 },
+		{ 10, 10, -10, 0, 255, 0, 255 },
+		{ 10, 10, 10, 0, 255, 0, 255 },
+		{ 10, -10, 10, 0, 255, 0, 255 },
+
+		{ -10, -10, -10, 255, 255, 255 },
+		{ -10, -10, 10, 255, 255, 255 },
+		{ 10, -10, 10, 255, 255, 255 },
+		{ 10, -10, -10, 255, 255, 255 },
+
+		{ -10, 10, -10, 0, 0, 255, 255 },
+		{ -10, 10, 10, 0, 0, 255, 255 },
+		{ 10, 10, 10, 0, 0, 255, 255 },
+		{ 10, 10, -10, 0, 0, 255, 255 },
+	};
+
+	const Uint16 world_indices[36] {
+		 0,  1,  2,  0,  2,  3,
+		 6,  5,  4,  7,  6,  4,
+		 8,  9, 10,  8, 10, 11,
+		14, 13, 12, 15, 14, 12,
+		16, 17, 18, 16, 18, 19,
+		22, 21, 20, 23, 22, 20
+	};
 	// push verts & indices to buffer
-	const PositionTextureVertex vertices[4] {
+	const PositionTextureVertex screen_vertices[4] {
 		{-1, 1, 0, 0, 0},
 		{1, 1, 0, 1, 0},
 		{1, -1, 0, 1, 1},
 		{-1, -1, 0, 0, 1}
 	};
-	const Uint16 indices[6] { 0, 1, 2, 0, 1, 3 };
-	SDL_memcpy(m_screen_v.open(), vertices, sizeof(PositionTextureVertex) * 4);
+	const Uint16 screen_indices[6] { 0, 1, 2, 0, 1, 3 };
+	SDL_memcpy(m_world_v.open(), world_vertices, sizeof(PositionColorVertex) * 24);
+	m_world_v.upload();
+	SDL_memcpy(m_world_i.open(), world_indices, sizeof(Uint16) * 36);
+	m_world_i.upload();
+	SDL_memcpy(m_screen_v.open(), screen_vertices, sizeof(PositionTextureVertex) * 4);
 	m_screen_v.upload();
-	SDL_memcpy(m_screen_i.open(), indices, sizeof(Uint16) * 6);
+	SDL_memcpy(m_screen_i.open(), screen_indices, sizeof(Uint16) * 6);
 	m_screen_i.upload();
 }
 
