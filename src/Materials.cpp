@@ -115,187 +115,68 @@ void SceneMaterial::init() {
 		}
 		SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUShader:\n\t%s", shader_files[i]);
 	}
-	const SDL_GPUColorTargetDescription world_color_target_descriptions[1] { {SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM} };
-	// create world pipeline
-	const SDL_GPUVertexAttribute world_vertex_attributes[2] {
-		{
-			.location = 0,
-			.buffer_slot = 0,
-			.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-			.offset = 0
-		}, {
-			.location = 1,
-			.buffer_slot = 0,
-			.format = SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4_NORM,
-			.offset = sizeof(float) * 3
-		}
-	};
-	const SDL_GPUVertexBufferDescription world_buffer_descriptions[1] {
-		{
-			.slot = 0,
-			.pitch = sizeof(PositionColorVertex),
-			.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
-			.instance_step_rate = 0,
-		}
-	};
-	const SDL_GPUGraphicsPipelineCreateInfo world_pipeline_info {
-		.vertex_shader = shaders[0],
-		.fragment_shader = shaders[1],
-		.vertex_input_state = {
-			.vertex_buffer_descriptions = world_buffer_descriptions,
-			.num_vertex_buffers = 1,
-			.vertex_attributes = world_vertex_attributes,
-			.num_vertex_attributes = 2
-		},
-		.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-		.rasterizer_state = {
-			.fill_mode = SDL_GPU_FILLMODE_FILL,
-			.cull_mode = SDL_GPU_CULLMODE_NONE,
-			.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE
-		},
-		.depth_stencil_state = {
-			.compare_op = SDL_GPU_COMPAREOP_LESS,
-			.write_mask = 0xFF,
-			.enable_depth_test = true,
-			.enable_depth_write = true,
-			.enable_stencil_test = false,
-		},
-		.target_info = {
-			.color_target_descriptions = world_color_target_descriptions,
-			.num_color_targets = 1,
-			.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D16_UNORM,
-			.has_depth_stencil_target = true,
-		},
-	};
+	// assign shaders to pipelines
+	m_world_pipeline_create.vertex_shader = shaders[WORLD_VERT];
+	m_world_pipeline_create.fragment_shader = shaders[WORLD_FRAG];
+	m_screen_pipeline_create.vertex_shader = shaders[SCREEN_VERT];
+	m_screen_pipeline_create.fragment_shader = shaders[SCREEN_FRAG];
+	// assign info about swapchain texture
 	const ContextData ctx { Context::get()->data() };
-	m_world_pipeline = SDL_CreateGPUGraphicsPipeline(ctx.gpu, &world_pipeline_info);
+	const SDL_GPUColorTargetDescription swapchain_color_target_description[1] { {
+		.format = SDL_GetGPUSwapchainTextureFormat(ctx.gpu, ctx.window),
+		.blend_state = {
+			.src_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE,
+			.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+			.color_blend_op = SDL_GPU_BLENDOP_ADD,
+			.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE,
+			.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+			.alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+			.enable_blend = true
+		}
+	}};
+	SDL_GPUGraphicsPipelineTargetInfo swapchain_target_info {
+		.color_target_descriptions = swapchain_color_target_description,
+		.num_color_targets = 1,
+	};
+	m_screen_pipeline_create.target_info = swapchain_target_info;
+	// create world pipeline
+	m_world_pipeline = SDL_CreateGPUGraphicsPipeline(ctx.gpu, &m_world_pipeline_create);
 	if (m_world_pipeline == nullptr) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
 	}
 	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUGraphicsPipeline");
 	SDL_ReleaseGPUShader(ctx.gpu, shaders[WORLD_VERT]);
-	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader: %s", shader_files[WORLD_VERT]);
+	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader:\n\t%s", shader_files[WORLD_VERT]);
 	SDL_ReleaseGPUShader(ctx.gpu, shaders[WORLD_FRAG]);
-	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader: %s", shader_files[WORLD_FRAG]);
-
+	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader:\n\t%s", shader_files[WORLD_FRAG]);
 	// create screen pipeline
-	const SDL_GPUColorTargetBlendState screen_color_target_blendstate {
-		.src_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE,
-		.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-		.color_blend_op = SDL_GPU_BLENDOP_ADD,
-		.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE,
-		.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-		.alpha_blend_op = SDL_GPU_BLENDOP_ADD,
-		.enable_blend = true,
-	};
-	const SDL_GPUColorTargetDescription screen_color_target_descriptions[1] {
-		{
-			.format = SDL_GetGPUSwapchainTextureFormat(ctx.gpu, ctx.window),
-			.blend_state = screen_color_target_blendstate
-		}
-	};
-	const SDL_GPUVertexBufferDescription screen_buffer_description[1] {
-		{
-			.slot = 0,
-			.pitch = sizeof(PositionTextureVertex),
-			.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
-			.instance_step_rate = 0,
-		}
-	};
-	const SDL_GPUVertexAttribute screen_vertex_attributes[2] {
-		{
-			.location = 0,
-			.buffer_slot = 0,
-			.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-			.offset = 0
-		}, {
-			.location = 1,
-			.buffer_slot = 0,
-			.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
-			.offset = sizeof(float) * 3
-		}
-	};
-	const SDL_GPUGraphicsPipelineCreateInfo screen_pipeline_info {
-		.vertex_shader = shaders[2],
-		.fragment_shader = shaders[3],
-		.vertex_input_state = {
-			.vertex_buffer_descriptions = screen_buffer_description,
-			.num_vertex_buffers = 1,
-			.vertex_attributes = screen_vertex_attributes,
-			.num_vertex_attributes = 2
-		},
-		.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-		.rasterizer_state = {
-			.fill_mode = SDL_GPU_FILLMODE_FILL,
-			.cull_mode = SDL_GPU_CULLMODE_NONE,
-			.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE
-		},
-		.depth_stencil_state = {
-			.compare_op = SDL_GPU_COMPAREOP_LESS,
-			.write_mask = 0xFF,
-			.enable_depth_test = true,
-			.enable_depth_write = true,
-			.enable_stencil_test = false,
-		},
-		.target_info = {
-			.color_target_descriptions = screen_color_target_descriptions,
-			.num_color_targets = 1,
-			.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D16_UNORM,
-			.has_depth_stencil_target = true,
-		},
-	};
-	m_screen_pipeline = SDL_CreateGPUGraphicsPipeline(ctx.gpu, &screen_pipeline_info);
+	m_screen_pipeline = SDL_CreateGPUGraphicsPipeline(ctx.gpu, &m_screen_pipeline_create);
 	if (m_screen_pipeline == nullptr) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
 	}
 	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUGraphicsPipeline");
 	SDL_ReleaseGPUShader(ctx.gpu, shaders[SCREEN_VERT]);
-	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader: %s", shader_files[SCREEN_VERT]);
+	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader:\n\t%s", shader_files[SCREEN_VERT]);
 	SDL_ReleaseGPUShader(ctx.gpu, shaders[SCREEN_FRAG]);
-	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader: %s", shader_files[SCREEN_FRAG]);
-
-	// create color & depth texture
-	const SDL_GPUTextureCreateInfo color_texture_info {
-		.type = SDL_GPU_TEXTURETYPE_2D,
-		.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
-		.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET,
-		.width = ctx.width,
-		.height = ctx.height,
-		.layer_count_or_depth = 1,
-		.num_levels = 1,
-		.sample_count = SDL_GPU_SAMPLECOUNT_1,
-	};
-	m_scene_color = SDL_CreateGPUTexture(ctx.gpu, &color_texture_info);
+	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader:\n\t%s", shader_files[SCREEN_FRAG]);
+	// assign window dimensions to textures
+	m_scene_color_create.width = ctx.width;
+	m_scene_color_create.height = ctx.height;
+	m_scene_depth_create.width = ctx.width;
+	m_scene_depth_create.height = ctx.height;
+	// create scene color & depth texture
+	m_scene_color = SDL_CreateGPUTexture(ctx.gpu, &m_scene_color_create);
 	if (m_scene_color == nullptr) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUTexture failed: %s", SDL_GetError());
 	}
 	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUTexture");
-	const SDL_GPUTextureCreateInfo depth_texture_info {
-		.type = SDL_GPU_TEXTURETYPE_2D,
-		.format = SDL_GPU_TEXTUREFORMAT_D16_UNORM,
-		.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
-		.width = ctx.width,
-		.height = ctx.height,
-		.layer_count_or_depth = 1,
-		.num_levels = 1,
-		.sample_count = SDL_GPU_SAMPLECOUNT_1,
-	};
-	m_scene_depth = SDL_CreateGPUTexture(ctx.gpu, &depth_texture_info);
+	m_scene_depth = SDL_CreateGPUTexture(ctx.gpu, &m_scene_depth_create);
 	if (m_scene_depth == nullptr) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUTexture failed: %s", SDL_GetError());
 	}
 	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUTexture");
-
 	// create sampler
-	const SDL_GPUSamplerCreateInfo sampler_info {
-		.min_filter = SDL_GPU_FILTER_NEAREST,
-		.mag_filter = SDL_GPU_FILTER_NEAREST,
-		.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
-		.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
-		.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
-		.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT
-	};
-	m_sampler = SDL_CreateGPUSampler(ctx.gpu, &sampler_info);
+	m_sampler = SDL_CreateGPUSampler(ctx.gpu, &m_sampler_create);
 	if (m_sampler == nullptr) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUSampler failed: %s", SDL_GetError());
 	}
@@ -381,11 +262,20 @@ void SceneMaterial::draw() {
 		return;
 	}
 	// do projection math
-	float near_far[2] {20.0f, 60.0f}, aspect { static_cast<float>(ctx.width) / static_cast<float>(ctx.height) };
+	float near_far[2] {20.0f, 60.0f};
+	float aspect { static_cast<float>(ctx.width) / static_cast<float>(ctx.height) };
 	Matrix4x4 proj { getFov(75.0f * SDL_PI_F / 180.0f, aspect, near_far[0], near_far[1]) };
 	Matrix4x4 view { getLookAt(ctx.camera_pos, {0, 0, 0}, {0, 1, 0}) };
 	Matrix4x4 view_proj { view * proj };
-	SDL_PushGPUVertexUniformData(cmdbuf, 0, &view_proj, sizeof(view_proj));
+	float view_proj_flat[16] { };
+	int i { };
+	for (int r = 0; r < 4; ++r) {
+		for (int c = 0; c < 4; ++c) {
+			view_proj_flat[i] = view_proj.at(r).at(c);
+			++i;
+		}
+	}
+	SDL_PushGPUVertexUniformData(cmdbuf, 0, &view_proj_flat, sizeof(view_proj_flat));
 	SDL_PushGPUFragmentUniformData(cmdbuf, 0, near_far, sizeof(near_far));
 	// setup target info
 	const SDL_GPUColorTargetInfo world_color_target_info {
