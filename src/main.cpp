@@ -5,7 +5,7 @@ Context* Context::self = 0;
 
 int main() {
 
-	Renderer renderer {400, 300};
+	Renderer renderer {1920, 1080};
 	SceneMaterial mat {};
 
 	// main loop

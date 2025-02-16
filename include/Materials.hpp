@@ -31,7 +31,7 @@ class SceneMaterial {
 		VertexBuffer<PositionColorVertex>* worldVertBuffer() { return &m_world_v; }
 		IndexBuffer* worldIndexBuffer() { return &m_world_i; }
 	private:
-		void init();
+		int init();
 		bool loadShaders(const ContextData &ctx);
 		bool createWorldPipeline(const ContextData &ctx);
 		bool createScreenPipeline(const ContextData &ctx);

@@ -210,45 +210,43 @@ bool SceneMaterial::createSampler(const ContextData &ctx) {
 	return true;
 }
 
-void SceneMaterial::init() {
+int SceneMaterial::init() {
 	// load shaders
 	const ContextData ctx { Context::get()->data() };
-	loadShaders(ctx);
-	// create world pipeline
-	createWorldPipeline(ctx);
-	// create screen pipeline
-	createScreenPipeline(ctx);
-	// create textures
-	createColorTexture(ctx);
-	createDepthTexture(ctx);
-	// create sampler
-	createSampler(ctx);
+	if (!loadShaders(ctx))
+		return -1;
+	else if (!createWorldPipeline(ctx))
+		return -2;
+	else if (!createScreenPipeline(ctx))
+		return -3;
+	else if (!createColorTexture(ctx))
+		return -4;
+	else if (!createDepthTexture(ctx))
+		return -5;
+	else if (!createSampler(ctx))
+		return -6;
+	// vertices & indices
 	const PositionColorVertex world_vertices[24] {
 		{ -10, -10, -10, 255, 0, 0, 255 },
 		{ 10, -10, -10, 255, 0, 0, 255 },
 		{ 10, 10, -10, 255, 0, 0, 255 },
 		{ -10, 10, -10, 255, 0, 0, 255 },
-
 		{ -10, -10, 10, 255, 255, 0, 255 },
 		{ 10, -10, 10, 255, 255, 0, 255 },
 		{ 10, 10, 10, 255, 255, 0, 255 },
 		{ -10, 10, 10, 255, 255, 0, 255 },
-
 		{ -10, -10, -10, 255, 0, 255, 255 },
 		{ -10, 10, -10, 255, 0, 255, 255 },
 		{ -10, 10, 10, 255, 0, 255, 255 },
 		{ -10, -10, 10, 255, 0, 255, 255 },
-
 		{ 10, -10, -10, 0, 255, 0, 255 },
 		{ 10, 10, -10, 0, 255, 0, 255 },
 		{ 10, 10, 10, 0, 255, 0, 255 },
 		{ 10, -10, 10, 0, 255, 0, 255 },
-
 		{ -10, -10, -10, 255, 255, 255 },
 		{ -10, -10, 10, 255, 255, 255 },
 		{ 10, -10, 10, 255, 255, 255 },
 		{ 10, -10, -10, 255, 255, 255 },
-
 		{ -10, 10, -10, 0, 0, 255, 255 },
 		{ -10, 10, 10, 0, 0, 255, 255 },
 		{ 10, 10, 10, 0, 0, 255, 255 },
@@ -262,7 +260,6 @@ void SceneMaterial::init() {
 		16, 17, 18, 16, 18, 19,
 		22, 21, 20, 23, 22, 20
 	};
-	// push verts & indices to buffer
 	const PositionTextureVertex screen_vertices[4] {
 		{-1, 1, 0, 0, 0},
 		{1, 1, 0, 1, 0},
@@ -270,6 +267,7 @@ void SceneMaterial::init() {
 		{-1, -1, 0, 0, 1}
 	};
 	const Uint16 screen_indices[6] { 0, 1, 2, 0, 2, 3 };
+	// push verts & indices to buffer
 	SDL_memcpy(m_world_v.open(), world_vertices, sizeof(PositionColorVertex) * 24);
 	m_world_v.upload();
 	SDL_memcpy(m_world_i.open(), world_indices, sizeof(Uint16) * 36);
@@ -278,6 +276,7 @@ void SceneMaterial::init() {
 	m_screen_v.upload();
 	SDL_memcpy(m_screen_i.open(), screen_indices, sizeof(Uint16) * 6);
 	m_screen_i.upload();
+	return 0;
 }
 
 SceneMaterial::~SceneMaterial() {
