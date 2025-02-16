@@ -1,7 +1,7 @@
 #include "Math.hpp"
 
 Vector3 Vector3::normalize() const {
-	float mag { SDL_sqrtf( SDL_exp(at(0)) + SDL_exp(at(1)) + SDL_exp(at(2)) ) };
+	float mag { SDL_sqrtf( at(0) * at(0) + at(1) * at(1) + at(2) * at(2) ) };
 	return Vector3 { at(0) / mag, at(1) / mag, at(2) / mag };
 }
 float Vector3::dot(const Vector3 &other) const {
