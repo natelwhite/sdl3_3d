@@ -37,12 +37,13 @@ Matrix4x4 SceneMaterial::getLookAt(const Vector3 &camera_pos, const Vector3 &cam
 	const Vector3 a { target_to_pos.normalize() };
 	const Vector3 b { camera_up.cross(a).normalize() };
 	const Vector3 c { a.cross(b) };
-	return {
-		b.at(0), c.at(0), a.at(0), 0,
-		b.at(1), c.at(1), a.at(1), 0,
-		b.at(2), c.at(2), a.at(2), 0,
-		-(b.dot(camera_pos), -(c.dot(camera_pos), -(a.dot(camera_pos))))
+	Matrix4x4 result {
+		Vector4 { b.at(0), c.at(0), a.at(0), 0 },
+		Vector4 { b.at(1), c.at(1), a.at(1), 0 },
+		Vector4 { b.at(2), c.at(2), a.at(2), 0 },
+		Vector4 { -(b.dot(camera_pos)), -(c.dot(camera_pos)), -(a.dot(camera_pos)), 1 }
 	};
+	return result;
 }
 
 SDL_GPUShader* SceneMaterial::loadShader(const char *filename, const Uint32 &num_samplers, const Uint32 &num_uniform_buffers, const Uint32 &num_storage_buffers, const Uint32 &num_storage_textures) {
@@ -212,7 +213,6 @@ void SceneMaterial::init() {
 		{ 10, 10, 10, 0, 0, 255, 255 },
 		{ 10, 10, -10, 0, 0, 255, 255 },
 	};
-
 	const Uint16 world_indices[36] {
 		 0,  1,  2,  0,  2,  3,
 		 6,  5,  4,  7,  6,  4,
@@ -228,7 +228,7 @@ void SceneMaterial::init() {
 		{1, -1, 0, 1, 1},
 		{-1, -1, 0, 0, 1}
 	};
-	const Uint16 screen_indices[6] { 0, 1, 2, 0, 1, 3 };
+	const Uint16 screen_indices[6] { 0, 1, 2, 0, 2, 3 };
 	SDL_memcpy(m_world_v.open(), world_vertices, sizeof(PositionColorVertex) * 24);
 	m_world_v.upload();
 	SDL_memcpy(m_world_i.open(), world_indices, sizeof(Uint16) * 36);
@@ -262,21 +262,11 @@ void SceneMaterial::draw() {
 		return;
 	}
 	// do projection math
-	float near_far[2] {20.0f, 60.0f};
+	float near_far[2] {0.01f, 100.0f};
 	float aspect { static_cast<float>(ctx.width) / static_cast<float>(ctx.height) };
 	Matrix4x4 proj { getFov(75.0f * SDL_PI_F / 180.0f, aspect, near_far[0], near_far[1]) };
 	Matrix4x4 view { getLookAt(ctx.camera_pos, {0, 0, 0}, {0, 1, 0}) };
 	Matrix4x4 view_proj { view * proj };
-	float view_proj_flat[16] { };
-	int i { };
-	for (int r = 0; r < 4; ++r) {
-		for (int c = 0; c < 4; ++c) {
-			view_proj_flat[i] = view_proj.at(r).at(c);
-			++i;
-		}
-	}
-	SDL_PushGPUVertexUniformData(cmdbuf, 0, &view_proj_flat, sizeof(view_proj_flat));
-	SDL_PushGPUFragmentUniformData(cmdbuf, 0, near_far, sizeof(near_far));
 	// setup target info
 	const SDL_GPUColorTargetInfo world_color_target_info {
 		.texture = m_scene_color,
@@ -289,9 +279,13 @@ void SceneMaterial::draw() {
 		.clear_depth = 1,
 		.load_op = SDL_GPU_LOADOP_CLEAR,
 		.store_op = SDL_GPU_STOREOP_STORE,
+		.stencil_load_op = SDL_GPU_LOADOP_CLEAR,
+		.stencil_store_op = SDL_GPU_STOREOP_STORE,
 		.cycle = true,
-		.clear_stencil = 0
+		.clear_stencil = 0,
 	};
+	SDL_PushGPUVertexUniformData(cmdbuf, 0, &view_proj, sizeof(view_proj));
+	SDL_PushGPUFragmentUniformData(cmdbuf, 0, near_far, sizeof(near_far));
 	// render to screen texture
 	SDL_GPURenderPass *render_pass { SDL_BeginGPURenderPass(cmdbuf, &world_color_target_info, 1, &depth_stencil_target_info)};
 	const SDL_GPUBufferBinding world_buffer_binding_v { m_world_v.get(), 0 };
