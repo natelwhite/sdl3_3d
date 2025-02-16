@@ -46,3 +46,10 @@ Renderer::~Renderer() {
 	Context::get()->set(ContextData{});
 	SDL_Quit();
 }
+
+void Renderer::update() {
+	ContextData ctx { Context::get()->data() };
+	m_time += ctx.delta_time;
+	ctx.camera_pos = { SDL_cosf(m_time) * 30, 30, SDL_sinf(m_time) * 30 };
+	Context::get()->set(ctx);
+}

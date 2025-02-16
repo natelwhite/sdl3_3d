@@ -10,6 +10,7 @@ struct ContextData {
 		SDL_GPUShaderFormat shader_format;
 		const char *exe_path, *shaders_path;
 		Vector3 camera_pos {0, 0, 4};
+		float delta_time { };
 };
 
 class Context {

@@ -1,18 +1,19 @@
 #include "Renderer.hpp"
 #include "Materials.hpp"
-#include <iostream>
 
 Context* Context::self = 0;
 
 int main() {
 
-	Renderer renderer {640, 480};
+	Renderer renderer {1200, 900};
 	SceneMaterial mat {};
 
 	// main loop
+	float last_time { };
 	bool quit = false;
 	while (!quit) {
 		SDL_Event e;
+		ContextData ctx { Context::get()->data() };
 		while (SDL_PollEvent(&e)) {
 			switch(e.type) {
 			case SDL_EVENT_QUIT:
@@ -27,43 +28,37 @@ int main() {
 					/*mat.refresh();*/
 					break;
 				case SDLK_W: {
-					ContextData ctx { Context::get()->data() };
-					ctx.camera_pos.at(2) += 1;
+					ctx.camera_pos.at(2) += 5;
 					Context::get()->set(ctx);
 					break;
 				}
 				case SDLK_A: {
-					ContextData ctx { Context::get()->data() };
 					Vector3 cam_pos { ctx.camera_pos };
-					ctx.camera_pos.at(0) -= 1;
+					ctx.camera_pos.at(0) -= 5;
 					Context::get()->set(ctx);
 					break;
 				}
 				case SDLK_S: {
-					ContextData ctx { Context::get()->data() };
 					Vector3 cam_pos { ctx.camera_pos };
-					ctx.camera_pos.at(2) -= 1;
+					ctx.camera_pos.at(2) -= 5;
 					Context::get()->set(ctx);
 					break;
 				}
 				case SDLK_D: {
-					ContextData ctx { Context::get()->data() };
 					Vector3 cam_pos { ctx.camera_pos };
-					ctx.camera_pos.at(0) += 1;
+					ctx.camera_pos.at(0) += 5;
 					Context::get()->set(ctx);
 					break;
 				}
 				case SDLK_Z: {
-					ContextData ctx { Context::get()->data() };
 					Vector3 cam_pos { ctx.camera_pos };
-					ctx.camera_pos.at(1) += 1;
+					ctx.camera_pos.at(1) += 5;
 					Context::get()->set(ctx);
 					break;
 				}
 				case SDLK_X: {
-					ContextData ctx { Context::get()->data() };
 					Vector3 cam_pos { ctx.camera_pos };
-					ctx.camera_pos.at(1) -= 1;
+					ctx.camera_pos.at(1) -= 5;
 					Context::get()->set(ctx);
 					break;
 				}
@@ -71,6 +66,13 @@ int main() {
 			}
 		}
 		mat.draw();
+
+		// update time
+		float new_time = SDL_GetTicks() / 1000.0f;
+		ctx.delta_time = new_time - last_time;
+		Context::get()->set(ctx);
+		last_time = new_time;
+		renderer.update();
 	}
 	return 0;
 }
