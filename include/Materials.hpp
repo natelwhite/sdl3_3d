@@ -19,17 +19,9 @@ struct PositionTextureVertex {
 	float u, v;
 };
 
-class Material {
-	public:
-		Material(const char *t_vert_file, const char *t_frag_file);
-		~Material();
-		virtual void draw() = 0;
-		void refresh();
-	protected:
-		virtual void init() = 0;
-		const char *m_vert_file, *m_frag_file;
-		SDL_GPUGraphicsPipeline *m_pipeline;
-};
+Matrix4x4 CreateProjection(const float &fov, const float &aspect, const float &near, const float &far);
+Matrix4x4 CreateView(const Vector3 &camera_pos, const Vector3 &camera_target, const Vector3 &camera_up);
+SDL_GPUShader* LoadShader(const char *filename, const Uint32 &num_samplers, const Uint32 &num_uniform_buffers, const Uint32 &num_storage_buffers, const Uint32 &num_storage_textures);
 
 class SceneMaterial {
 	public:
@@ -150,8 +142,4 @@ class SceneMaterial {
 			.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
 			.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT
 		};
-
-		Matrix4x4 getFov(const float &fov, const float &aspect, const float &near, const float &far) const;
-		Matrix4x4 getLookAt(const Vector3 &camera_pos, const Vector3 &camera_target, const Vector3 &camera_up) const;
-		SDL_GPUShader* loadShader(const char *filename, const Uint32 &num_samplers, const Uint32 &num_uniform_buffers, const Uint32 &num_storage_buffers, const Uint32 &num_storage_textures);
 };

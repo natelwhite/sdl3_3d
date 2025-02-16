@@ -3,92 +3,6 @@
 #include "SDL3/SDL_log.h"
 #include "SDL3_shadercross/SDL_shadercross.h"
 
-Material::Material(const char *t_vert_file, const char *t_frag_file)
-	: m_vert_file(t_vert_file), m_frag_file(t_frag_file)  {
-}
-
-Material::~Material() {
-	const ContextData ctx { Context::get()->data() };
-	SDL_ReleaseGPUGraphicsPipeline(ctx.gpu, m_pipeline);
-}
-
-void Material::refresh() {
-	const ContextData ctx { Context::get()->data() };
-	SDL_ReleaseGPUGraphicsPipeline(ctx.gpu, m_pipeline);
-	init();
-}
-
-Matrix4x4 SceneMaterial::getFov(const float &fov, const float &aspect, const float &near, const float &far)  const {
-	const float num { 1.0f / static_cast<float>(SDL_tanf(fov * 0.5f)) };
-	return Matrix4x4 {
-		Vector4 { num / aspect, 0, 0, 0 },
-		Vector4 { 0, num, 0, 0 },
-		Vector4 { 0, 0, far / (near - far), -1 },
-		Vector4 { 0, 0, (near * far) / (near - far), 0 },
-	};
-}
-
-Matrix4x4 SceneMaterial::getLookAt(const Vector3 &camera_pos, const Vector3 &camera_target, const Vector3 &camera_up) const {
-	const Vector3 target_to_pos {
-		camera_pos.at(0) - camera_target.at(0),
-		camera_pos.at(1) - camera_target.at(1),
-		camera_pos.at(2) - camera_target.at(2),
-	};
-	const Vector3 a { target_to_pos.normalize() };
-	const Vector3 b { camera_up.cross(a).normalize() };
-	const Vector3 c { a.cross(b) };
-	Matrix4x4 result {
-		Vector4 { b.at(0), c.at(0), a.at(0), 0 },
-		Vector4 { b.at(1), c.at(1), a.at(1), 0 },
-		Vector4 { b.at(2), c.at(2), a.at(2), 0 },
-		Vector4 { -(b.dot(camera_pos)), -(c.dot(camera_pos)), -(a.dot(camera_pos)), 1 }
-	};
-	return result;
-}
-
-SDL_GPUShader* SceneMaterial::loadShader(const char *filename, const Uint32 &num_samplers, const Uint32 &num_uniform_buffers, const Uint32 &num_storage_buffers, const Uint32 &num_storage_textures) {
-	SDL_ShaderCross_ShaderStage stage;
-	if (SDL_strstr(filename, ".vert")) {
-		stage = SDL_SHADERCROSS_SHADERSTAGE_VERTEX;
-	} else if (SDL_strstr(filename, ".frag")) {
-		stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT;
-	} else {
-		SDL_Log("Invalid shader stage!");
-		return nullptr;
-	}
-	const ContextData ctx { Context::get()->data() };
-	char full_path[256];
-	SDL_snprintf(full_path, sizeof(full_path), "%s%s%s%s", ctx.exe_path, ctx.shaders_path, filename, ".hlsl");
-	size_t code_size;
-	void *code { SDL_LoadFile(full_path, &code_size) };
-	if (code == nullptr) {
-		SDL_Log("LoadFile failed: %s", SDL_GetError());
-		return nullptr;
-	}
-	SDL_ShaderCross_HLSL_Info shader_info {
-		.source = static_cast<const char*>(code),
-		.entrypoint = "main",
-		.include_dir = NULL,
-		.defines = NULL,
-		.shader_stage = stage,
-		.enable_debug = true,
-		.name = NULL,
-		.props = 0
-	};
-	SDL_ShaderCross_GraphicsShaderMetadata metadata {
-		.num_samplers = num_samplers,
-		.num_storage_textures = num_storage_textures,
-		.num_storage_buffers = num_storage_buffers,
-		.num_uniform_buffers = num_uniform_buffers
-	};
-	SDL_GPUShader *result { SDL_ShaderCross_CompileGraphicsShaderFromHLSL(ctx.gpu, &shader_info, &metadata) };
-	if (result == nullptr) {
-		SDL_Log("CompileGraphicsShaderFromHLSL failed: %s", SDL_GetError());
-		return nullptr;
-	}
-	return result;
-}
-
 SceneMaterial::SceneMaterial()
 	: m_world_v(24), m_world_i(36), m_screen_v(4), m_screen_i(6) {
 	init();
@@ -103,10 +17,10 @@ void SceneMaterial::init() {
 		"DepthOutline.frag"
 	};
 	SDL_GPUShader *shaders[4] {
-		loadShader(shader_files[0], 0, 1, 0, 0),
-		loadShader(shader_files[1], 0, 1, 0, 0),
-		loadShader(shader_files[2], 0, 0, 0, 0),
-		loadShader(shader_files[3], 2, 1, 0, 0)
+		LoadShader(shader_files[0], 0, 1, 0, 0),
+		LoadShader(shader_files[1], 0, 1, 0, 0),
+		LoadShader(shader_files[2], 0, 0, 0, 0),
+		LoadShader(shader_files[3], 2, 1, 0, 0)
 	};
 	const Uint8 WORLD_VERT { 0 }, WORLD_FRAG { 1 }, SCREEN_VERT { 2 }, SCREEN_FRAG { 3 };
 	for (int i = 0; i < 4; ++i) {
@@ -264,8 +178,8 @@ void SceneMaterial::draw() {
 	// do projection math
 	float near_far[2] {0.01f, 100.0f};
 	float aspect { static_cast<float>(ctx.width) / static_cast<float>(ctx.height) };
-	Matrix4x4 proj { getFov(75.0f * SDL_PI_F / 180.0f, aspect, near_far[0], near_far[1]) };
-	Matrix4x4 view { getLookAt(ctx.camera_pos, {0, 0, 0}, {0, 1, 0}) };
+	Matrix4x4 proj { CreateProjection(75.0f * SDL_PI_F / 180.0f, aspect, near_far[0], near_far[1]) };
+	Matrix4x4 view { CreateView(ctx.camera_pos, {0, 0, 0}, {0, 1, 0}) };
 	Matrix4x4 view_proj { view * proj };
 	// setup target info
 	const SDL_GPUColorTargetInfo world_color_target_info {
@@ -317,4 +231,75 @@ void SceneMaterial::draw() {
 	SDL_DrawGPUIndexedPrimitives(render_pass, m_screen_i.getCount(), 1, 0, 0, 0);
 	SDL_EndGPURenderPass(render_pass);
 	SDL_SubmitGPUCommandBuffer(cmdbuf);
+}
+
+Matrix4x4 CreateProjection(const float &fov, const float &aspect, const float &near, const float &far) {
+	const float num { 1.0f / static_cast<float>(SDL_tanf(fov * 0.5f)) };
+	return Matrix4x4 {
+		Vector4 { num / aspect, 0, 0, 0 },
+		Vector4 { 0, num, 0, 0 },
+		Vector4 { 0, 0, far / (near - far), -1 },
+		Vector4 { 0, 0, (near * far) / (near - far), 0 },
+	};
+}
+
+Matrix4x4 CreateView(const Vector3 &camera_pos, const Vector3 &camera_target, const Vector3 &camera_up) {
+	const Vector3 target_to_pos {
+		camera_pos.at(0) - camera_target.at(0),
+		camera_pos.at(1) - camera_target.at(1),
+		camera_pos.at(2) - camera_target.at(2),
+	};
+	const Vector3 a { target_to_pos.normalize() };
+	const Vector3 b { camera_up.cross(a).normalize() };
+	const Vector3 c { a.cross(b) };
+	Matrix4x4 result {
+		Vector4 { b.at(0), c.at(0), a.at(0), 0 },
+		Vector4 { b.at(1), c.at(1), a.at(1), 0 },
+		Vector4 { b.at(2), c.at(2), a.at(2), 0 },
+		Vector4 { -(b.dot(camera_pos)), -(c.dot(camera_pos)), -(a.dot(camera_pos)), 1 }
+	};
+	return result;
+}
+
+SDL_GPUShader* LoadShader(const char *filename, const Uint32 &num_samplers, const Uint32 &num_uniform_buffers, const Uint32 &num_storage_buffers, const Uint32 &num_storage_textures) {
+	SDL_ShaderCross_ShaderStage stage;
+	if (SDL_strstr(filename, ".vert")) {
+		stage = SDL_SHADERCROSS_SHADERSTAGE_VERTEX;
+	} else if (SDL_strstr(filename, ".frag")) {
+		stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT;
+	} else {
+		SDL_Log("Invalid shader stage!");
+		return nullptr;
+	}
+	const ContextData ctx { Context::get()->data() };
+	char full_path[256];
+	SDL_snprintf(full_path, sizeof(full_path), "%s%s%s%s", ctx.exe_path, ctx.shaders_path, filename, ".hlsl");
+	size_t code_size;
+	void *code { SDL_LoadFile(full_path, &code_size) };
+	if (code == nullptr) {
+		SDL_Log("LoadFile failed: %s", SDL_GetError());
+		return nullptr;
+	}
+	SDL_ShaderCross_HLSL_Info shader_info {
+		.source = static_cast<const char*>(code),
+		.entrypoint = "main",
+		.include_dir = NULL,
+		.defines = NULL,
+		.shader_stage = stage,
+		.enable_debug = true,
+		.name = NULL,
+		.props = 0
+	};
+	SDL_ShaderCross_GraphicsShaderMetadata metadata {
+		.num_samplers = num_samplers,
+		.num_storage_textures = num_storage_textures,
+		.num_storage_buffers = num_storage_buffers,
+		.num_uniform_buffers = num_uniform_buffers
+	};
+	SDL_GPUShader *result { SDL_ShaderCross_CompileGraphicsShaderFromHLSL(ctx.gpu, &shader_info, &metadata) };
+	if (result == nullptr) {
+		SDL_Log("CompileGraphicsShaderFromHLSL failed: %s", SDL_GetError());
+		return nullptr;
+	}
+	return result;
 }
