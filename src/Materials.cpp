@@ -8,36 +8,114 @@ SceneMaterial::SceneMaterial()
 	init();
 }
 
-void SceneMaterial::init() {
-	// load shaders
+bool SceneMaterial::loadShaders(const ContextData &ctx) {
 	const char *shader_files[4] {
 		"PositionColorTransform.vert",
 		"SolidColorDepth.frag",
 		"TexturedQuad.vert",
 		"DepthOutline.frag"
 	};
-	SDL_GPUShader *shaders[4] {
-		LoadShader(shader_files[0], 0, 1, 0, 0),
-		LoadShader(shader_files[1], 0, 1, 0, 0),
-		LoadShader(shader_files[2], 0, 0, 0, 0),
-		LoadShader(shader_files[3], 2, 1, 0, 0)
-	};
-	const Uint8 WORLD_VERT { 0 }, WORLD_FRAG { 1 }, SCREEN_VERT { 2 }, SCREEN_FRAG { 3 };
+	m_shaders.at(0) = LoadShader(ctx, shader_files[0], 0, 1, 0, 0);
+	m_shaders.at(1) = LoadShader(ctx, shader_files[1], 0, 1, 0, 0);
+	m_shaders.at(2) = LoadShader(ctx, shader_files[2], 0, 0, 0, 0);
+	m_shaders.at(3) = LoadShader(ctx, shader_files[3], 2, 1, 0, 0);
 	for (int i = 0; i < 4; ++i) {
-		if (shaders[i] == nullptr) {
+		if (m_shaders.at(i) == nullptr) {
 			SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "loadShader failed");
-			return;
+			return false;
 		}
 		SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUShader:\n\t%s", shader_files[i]);
 	}
-	// assign shaders to pipelines
-	m_world_pipeline_create.vertex_shader = shaders[WORLD_VERT];
-	m_world_pipeline_create.fragment_shader = shaders[WORLD_FRAG];
-	m_screen_pipeline_create.vertex_shader = shaders[SCREEN_VERT];
-	m_screen_pipeline_create.fragment_shader = shaders[SCREEN_FRAG];
-	// assign info about swapchain texture
-	const ContextData ctx { Context::get()->data() };
-	const SDL_GPUColorTargetDescription swapchain_color_target_description[1] { {
+	return true;
+}
+bool SceneMaterial::createWorldPipeline(const ContextData &ctx) {
+	const SDL_GPUVertexBufferDescription vertex_buffer_descriptions[1] {
+		{
+			.slot = 0,
+			.pitch = sizeof(PositionColorVertex),
+			.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+			.instance_step_rate = 0,
+		}
+	};
+	const SDL_GPUVertexAttribute vertex_attributes[2] {
+		{
+			.location = 0,
+			.buffer_slot = 0,
+			.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
+			.offset = 0
+		}, {
+			.location = 1,
+			.buffer_slot = 0,
+			.format = SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4_NORM,
+			.offset = sizeof(float) * 3
+		}
+	};
+	const SDL_GPUColorTargetDescription color_target_descriptions[1] {
+		{ .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM }
+	};
+	const SDL_GPUGraphicsPipelineCreateInfo world_pipeline_create {
+		.vertex_shader = m_shaders.at(0),
+		.fragment_shader = m_shaders.at(1),
+		.vertex_input_state = {
+			.vertex_buffer_descriptions = vertex_buffer_descriptions,
+			.num_vertex_buffers = 1,
+			.vertex_attributes = vertex_attributes,
+			.num_vertex_attributes = 2,
+		},
+		.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+		.rasterizer_state = {
+			.fill_mode = SDL_GPU_FILLMODE_FILL,
+			.cull_mode = SDL_GPU_CULLMODE_NONE,
+			.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE
+		},
+		.depth_stencil_state = {
+			.compare_op = SDL_GPU_COMPAREOP_LESS,
+			.write_mask = 0xFF,
+			.enable_depth_test = true,
+			.enable_depth_write = true,
+			.enable_stencil_test = false,
+		},
+		.target_info = {
+			.color_target_descriptions = color_target_descriptions,
+			.num_color_targets = 1,
+			.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D16_UNORM,
+			.has_depth_stencil_target = true
+		}
+	};
+	m_world_pipeline = SDL_CreateGPUGraphicsPipeline(ctx.gpu, &world_pipeline_create);
+	if (m_world_pipeline == nullptr) {
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
+		return false;
+	}
+	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUGraphicsPipeline");
+	SDL_ReleaseGPUShader(ctx.gpu, m_shaders.at(0));
+	SDL_ReleaseGPUShader(ctx.gpu, m_shaders.at(1));
+	return true;
+}
+
+bool SceneMaterial::createScreenPipeline(const ContextData &ctx) {
+	const SDL_GPUVertexBufferDescription vertex_buffer_descriptions[1] {
+		{
+			.slot = 0,
+			.pitch = sizeof(PositionTextureVertex),
+			.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+			.instance_step_rate = 0
+		}
+	};
+	const SDL_GPUVertexAttribute vertex_attributes[2] {
+		{
+			.location = 0,
+			.buffer_slot = 0,
+			.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
+			.offset = 0
+		}, {
+			.location = 1,
+			.buffer_slot = 0,
+			.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+			.offset = sizeof(float) * 3
+		}
+	};
+	const SDL_GPUColorTargetDescription color_target_description[1] { {
 		.format = SDL_GetGPUSwapchainTextureFormat(ctx.gpu, ctx.window),
 		.blend_state = {
 			.src_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE,
@@ -49,53 +127,102 @@ void SceneMaterial::init() {
 			.enable_blend = true
 		}
 	}};
-	SDL_GPUGraphicsPipelineTargetInfo swapchain_target_info {
-		.color_target_descriptions = swapchain_color_target_description,
-		.num_color_targets = 1,
+	const SDL_GPUGraphicsPipelineCreateInfo screen_pipeline_create {
+		.vertex_shader = m_shaders.at(2), // assigned during .init()
+		.fragment_shader = m_shaders.at(3), // assigned during .init()
+		.vertex_input_state = {
+			.vertex_buffer_descriptions = vertex_buffer_descriptions,
+			.num_vertex_buffers = 1,
+			.vertex_attributes = vertex_attributes,
+			.num_vertex_attributes = 2,
+		},
+		.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+		.target_info = {
+			.color_target_descriptions = color_target_description,
+			.num_color_targets = 1,
+		},
 	};
-	m_screen_pipeline_create.target_info = swapchain_target_info;
-	// create world pipeline
-	m_world_pipeline = SDL_CreateGPUGraphicsPipeline(ctx.gpu, &m_world_pipeline_create);
-	if (m_world_pipeline == nullptr) {
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
-	}
-	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUGraphicsPipeline");
-	SDL_ReleaseGPUShader(ctx.gpu, shaders[WORLD_VERT]);
-	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader:\n\t%s", shader_files[WORLD_VERT]);
-	SDL_ReleaseGPUShader(ctx.gpu, shaders[WORLD_FRAG]);
-	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader:\n\t%s", shader_files[WORLD_FRAG]);
-	// create screen pipeline
-	m_screen_pipeline = SDL_CreateGPUGraphicsPipeline(ctx.gpu, &m_screen_pipeline_create);
+	m_screen_pipeline = SDL_CreateGPUGraphicsPipeline(ctx.gpu, &screen_pipeline_create);
 	if (m_screen_pipeline == nullptr) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUGraphicsPipeline failed: %s", SDL_GetError());
+		return false;
 	}
 	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUGraphicsPipeline");
-	SDL_ReleaseGPUShader(ctx.gpu, shaders[SCREEN_VERT]);
-	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader:\n\t%s", shader_files[SCREEN_VERT]);
-	SDL_ReleaseGPUShader(ctx.gpu, shaders[SCREEN_FRAG]);
-	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Released GPUShader:\n\t%s", shader_files[SCREEN_FRAG]);
-	// assign window dimensions to textures
-	m_scene_color_create.width = ctx.width;
-	m_scene_color_create.height = ctx.height;
-	m_scene_depth_create.width = ctx.width;
-	m_scene_depth_create.height = ctx.height;
-	// create scene color & depth texture
-	m_scene_color = SDL_CreateGPUTexture(ctx.gpu, &m_scene_color_create);
+	SDL_ReleaseGPUShader(ctx.gpu, m_shaders.at(2));
+	SDL_ReleaseGPUShader(ctx.gpu, m_shaders.at(3));
+	return true;
+}
+
+bool SceneMaterial::createColorTexture(const ContextData &ctx) {
+	const SDL_GPUTextureCreateInfo scene_color_create {
+		.type = SDL_GPU_TEXTURETYPE_2D,
+		.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+		.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET,
+		.width = ctx.width,
+		.height = ctx.height,
+		.layer_count_or_depth = 1,
+		.num_levels = 1,
+		.sample_count = SDL_GPU_SAMPLECOUNT_1
+	};
+	m_scene_color = SDL_CreateGPUTexture(ctx.gpu, &scene_color_create);
 	if (m_scene_color == nullptr) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUTexture failed: %s", SDL_GetError());
+		return false;
 	}
 	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUTexture");
-	m_scene_depth = SDL_CreateGPUTexture(ctx.gpu, &m_scene_depth_create);
+	return true;
+}
+
+bool SceneMaterial::createDepthTexture(const ContextData &ctx) {
+	const SDL_GPUTextureCreateInfo scene_depth_create {
+		.type = SDL_GPU_TEXTURETYPE_2D,
+		.format = SDL_GPU_TEXTUREFORMAT_D16_UNORM,
+		.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
+		.width = ctx.width,
+		.height = ctx.height,
+		.layer_count_or_depth = 1,
+		.num_levels = 1,
+		.sample_count = SDL_GPU_SAMPLECOUNT_1
+	};
+	m_scene_depth = SDL_CreateGPUTexture(ctx.gpu, &scene_depth_create);
 	if (m_scene_depth == nullptr) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUTexture failed: %s", SDL_GetError());
 	}
 	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUTexture");
-	// create sampler
-	m_sampler = SDL_CreateGPUSampler(ctx.gpu, &m_sampler_create);
+	return true;
+}
+
+bool SceneMaterial::createSampler(const ContextData &ctx) {
+	const SDL_GPUSamplerCreateInfo sampler_create {
+		.min_filter = SDL_GPU_FILTER_NEAREST,
+		.mag_filter = SDL_GPU_FILTER_NEAREST,
+		.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+		.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+		.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+		.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT
+	};
+	m_sampler = SDL_CreateGPUSampler(ctx.gpu, &sampler_create);
 	if (m_sampler == nullptr) {
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateGPUSampler failed: %s", SDL_GetError());
+		return false;
 	}
 	SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Created GPUSampler");
+	return true;
+}
+
+void SceneMaterial::init() {
+	// load shaders
+	const ContextData ctx { Context::get()->data() };
+	loadShaders(ctx);
+	// create world pipeline
+	createWorldPipeline(ctx);
+	// create screen pipeline
+	createScreenPipeline(ctx);
+	// create textures
+	createColorTexture(ctx);
+	createDepthTexture(ctx);
+	// create sampler
+	createSampler(ctx);
 	const PositionColorVertex world_vertices[24] {
 		{ -10, -10, -10, 255, 0, 0, 255 },
 		{ 10, -10, -10, 255, 0, 0, 255 },
@@ -261,23 +388,22 @@ Matrix4x4 CreateView(const Vector3 &camera_pos, const Vector3 &camera_target, co
 	return result;
 }
 
-SDL_GPUShader* LoadShader(const char *filename, const Uint32 &num_samplers, const Uint32 &num_uniform_buffers, const Uint32 &num_storage_buffers, const Uint32 &num_storage_textures) {
+SDL_GPUShader* LoadShader(const ContextData &ctx, const char *filename, const Uint32 &num_samplers, const Uint32 &num_uniform_buffers, const Uint32 &num_storage_buffers, const Uint32 &num_storage_textures) {
 	SDL_ShaderCross_ShaderStage stage;
 	if (SDL_strstr(filename, ".vert")) {
 		stage = SDL_SHADERCROSS_SHADERSTAGE_VERTEX;
 	} else if (SDL_strstr(filename, ".frag")) {
 		stage = SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT;
 	} else {
-		SDL_Log("Invalid shader stage!");
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Invalid shader stage!");
 		return nullptr;
 	}
-	const ContextData ctx { Context::get()->data() };
 	char full_path[256];
 	SDL_snprintf(full_path, sizeof(full_path), "%s%s%s%s", ctx.exe_path, ctx.shaders_path, filename, ".hlsl");
 	size_t code_size;
 	void *code { SDL_LoadFile(full_path, &code_size) };
 	if (code == nullptr) {
-		SDL_Log("LoadFile failed: %s", SDL_GetError());
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "LoadFile failed: %s", SDL_GetError());
 		return nullptr;
 	}
 	SDL_ShaderCross_HLSL_Info shader_info {
@@ -298,7 +424,7 @@ SDL_GPUShader* LoadShader(const char *filename, const Uint32 &num_samplers, cons
 	};
 	SDL_GPUShader *result { SDL_ShaderCross_CompileGraphicsShaderFromHLSL(ctx.gpu, &shader_info, &metadata) };
 	if (result == nullptr) {
-		SDL_Log("CompileGraphicsShaderFromHLSL failed: %s", SDL_GetError());
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CompileGraphicsShaderFromHLSL failed: %s", SDL_GetError());
 		return nullptr;
 	}
 	return result;
