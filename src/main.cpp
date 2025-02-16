@@ -5,7 +5,7 @@ Context* Context::self = 0;
 
 int main() {
 
-	Renderer renderer {1200, 900};
+	Renderer renderer {400, 300};
 	SceneMaterial mat {};
 
 	// main loop
@@ -68,11 +68,12 @@ int main() {
 		mat.draw();
 
 		// update time
-		float new_time = SDL_GetTicks() / 1000.0f;
-		ctx.delta_time = new_time - last_time;
+		float new_time { SDL_GetTicks() / 1000.0f };
+		ctx.delta_time = { new_time - last_time };
 		Context::get()->set(ctx);
 		last_time = new_time;
 		renderer.update();
+		SDL_Delay(10);
 	}
 	return 0;
 }
