@@ -1,6 +1,5 @@
 #pragma once
 #include <SDL3_shadercross/SDL_shadercross.h>
-#include <iostream>
 
 #include "Buffer.hpp"
 #include "Math.hpp"
@@ -41,15 +40,15 @@ class SceneMaterial {
 		IndexBuffer* worldIndexBuffer() { return &m_world_i; }
 	private:
 		void init();
+		float m_time {};
 		VertexBuffer<PositionColorVertex> m_world_v;
 		IndexBuffer m_world_i;
 		VertexBuffer<PositionTextureVertex> m_screen_v;
 		IndexBuffer m_screen_i;
 		SDL_GPUGraphicsPipeline *m_world_pipeline, *m_screen_pipeline;
-		SDL_GPUTextureFormat m_swapchain_format;
 		SDL_GPUGraphicsPipelineCreateInfo m_world_pipeline_create {
-			.vertex_shader = nullptr, // loaded during .init()
-			.fragment_shader = nullptr, // loaded during init()
+			.vertex_shader = nullptr, // assigned during .init()
+			.fragment_shader = nullptr, // assigned during init()
 			.vertex_input_state = (SDL_GPUVertexInputState){
 				.vertex_buffer_descriptions = (SDL_GPUVertexBufferDescription[1]){ {
 					.slot = 0,
@@ -94,8 +93,8 @@ class SceneMaterial {
 			}
 		};
 		SDL_GPUGraphicsPipelineCreateInfo m_screen_pipeline_create {
-			.vertex_shader = nullptr, // loaded during .init()
-			.fragment_shader = nullptr, // loaded during .init()
+			.vertex_shader = nullptr, // assigned during .init()
+			.fragment_shader = nullptr, // assigned during .init()
 			.vertex_input_state = {
 				.vertex_buffer_descriptions = (SDL_GPUVertexBufferDescription[1]){ {
 					.slot = 0,
@@ -110,7 +109,7 @@ class SceneMaterial {
 					.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
 					.offset = 0
 				}, {
-					.location = 0,
+					.location = 1,
 					.buffer_slot = 0,
 					.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
 					.offset = sizeof(float) * 3
